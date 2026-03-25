@@ -180,8 +180,8 @@
         postLogoutRedirectUri: window.location.origin,
       },
       cache: {
-        cacheLocation: 'sessionStorage',
-        storeAuthStateInCookie: false,
+        cacheLocation: 'localStorage',
+        storeAuthStateInCookie: true,
       },
     };
 
@@ -206,13 +206,18 @@
         // Check if there is already a cached account
         var account = getActiveAccount();
         if (account) {
-          // Attempt a silent token acquisition to verify the session is still valid
-          var token = await getToken();
-          if (token) {
-            var userProfile = await fetchUserProfile(token);
+          // Silently re-acquire User.Read token to restore session without consent prompts
+          try {
+            var silentResult = await msalInstance.acquireTokenSilent({
+              scopes: LOGIN_SCOPES,
+              account: account,
+            });
+            var userProfile = await fetchUserProfile(silentResult.accessToken);
             if (userProfile) {
               setAuthState(true, userProfile);
             }
+          } catch (silentErr) {
+            console.warn('[KFGAuth] Silent session restore failed:', silentErr);
           }
         }
       }
@@ -240,13 +245,8 @@
 
       msalInstance.setActiveAccount(response.account);
 
-      // Acquire a token with the full set of scopes so we can call Graph
-      var tokenResponse = await msalInstance.acquireTokenSilent({
-        scopes: API_SCOPES,
-        account: response.account,
-      });
-
-      var profile = await fetchUserProfile(tokenResponse.accessToken);
+      // Use the login token (User.Read) to fetch profile — no extra consent needed
+      var profile = await fetchUserProfile(response.accessToken);
 
       if (!profile) {
         console.error('[KFGAuth] Login succeeded but domain validation failed.');
