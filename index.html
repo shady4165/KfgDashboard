@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="KFG Executive Dashboard — Senior Management Operations Hub">
+<meta name="theme-color" content="#0D1B35">
+<title>KFG Executive Dashboard</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<!-- MSAL.js 2.x (Browser) for Azure AD Authentication — vendored locally -->
+<script src="js/msal-browser.min.js"></script>
+
+<!-- Stylesheet -->
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- SKIP TO CONTENT (Accessibility) -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<!-- LOADER -->
+<div id="loader" role="status" aria-label="Loading dashboard">
+  <div class="spinner" aria-hidden="true"></div>
+  <div class="loader-txt" id="loader-txt">Starting up...</div>
+  <div class="loader-bar-wrap"><div class="loader-bar" id="loader-bar"></div></div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card" role="main">
+    <div class="login-logo" aria-hidden="true">&#x1F4CA;</div>
+    <h1>KFG Executive Dashboard</h1>
+    <p>Senior Management Operations Hub<br>Sign in with your Microsoft 365 account to load live data</p>
+
+    <label class="field-label" for="in-site">SharePoint Site URL</label>
+    <input class="login-input" id="in-site" type="url"
+      value="https://kfguae.sharepoint.com/sites/ExecutiveDashboard"
+      placeholder="https://yourcompany.sharepoint.com/sites/YourSite"
+      autocomplete="url">
+
+    <label class="field-label" for="in-client">
+      Azure App Client ID
+      <span style="color:rgba(255,255,255,0.25);font-size:10px;font-weight:400;">(see setup guide below)</span>
+    </label>
+    <input class="login-input" id="in-client" type="text"
+      placeholder="e.g. 12345678-abcd-1234-efgh-123456789abc"
+      autocomplete="off">
+
+    <button class="btn-connect" onclick="doConnect()" type="button">
+      <svg width="16" height="16" viewBox="0 0 21 21" fill="none" style="vertical-align:middle;margin-right:8px;" aria-hidden="true">
+        <rect width="10" height="10" fill="#F25022"/>
+        <rect x="11" width="10" height="10" fill="#7FBA00"/>
+        <rect y="11" width="10" height="10" fill="#00A4EF"/>
+        <rect x="11" y="11" width="10" height="10" fill="#FFB900"/>
+      </svg>
+      Connect &amp; Sign In with Microsoft
+    </button>
+
+    <div class="divider">or</div>
+    <button class="btn-demo" onclick="doDemo()" type="button">View with Sample Data (Demo Mode)</button>
+
+    <p class="login-note">
+      Need help getting the Client ID?
+      <a href="javascript:void(0)" onclick="showSetupGuide()">Click here for the step-by-step setup guide</a>
+      <br><br>
+      Your data never leaves Microsoft's servers. This dashboard reads directly from your SharePoint Excel files.
+    </p>
+  </div>
+</div>
+
+<!-- MAIN APPLICATION -->
+<div id="app" style="display:none">
+
+  <!-- TOP BAR -->
+  <header class="topbar" role="banner">
+    <div class="topbar-brand">
+      <div class="topbar-logo" aria-hidden="true">&#x1F4CA;</div>
+      <div>
+        <div class="topbar-name">KFG Executive Dashboard</div>
+        <div class="topbar-env" id="env-label">Operations Hub</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-badge" aria-live="polite">
+        <div class="pulse" id="pulse-dot" aria-hidden="true"></div>
+        <span id="conn-label">Loading...</span>
+      </div>
+      <span class="ts-label" id="ts-label" aria-label="Last updated"></span>
+      <button class="refresh-btn" onclick="refreshAll()" type="button" aria-label="Refresh dashboard data">&#x21BB; Refresh</button>
+      <div class="user-chip" id="user-chip" aria-label="Current user">&#x2014;</div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION -->
+  <nav class="nav" id="nav" role="navigation" aria-label="Department navigation">
+    <button class="nav-item active" onclick="go('home',this)" type="button" data-page="home">&#x1F3E0; Home</button>
+    <button class="nav-item" onclick="go('projects',this)" type="button" data-page="projects">&#x1F3D7; Projects</button>
+    <button class="nav-item" onclick="go('maintenance',this)" type="button" data-page="maintenance">&#x1F527; Maintenance</button>
+    <button class="nav-item" onclick="go('capex',this)" type="button" data-page="capex">&#x1F4B0; Capex <span class="nav-dot" aria-hidden="true"></span></button>
+    <button class="nav-item" onclick="go('procurement',this)" type="button" data-page="procurement">&#x1F6D2; Procurement <span class="nav-dot" aria-hidden="true"></span></button>
+    <button class="nav-item" onclick="go('it',this)" type="button" data-page="it">&#x1F4BB; IT</button>
+    <button class="nav-item" onclick="go('ma',this)" type="button" data-page="ma">&#x1F91D; M&amp;A <span class="nav-dot" aria-hidden="true"></span></button>
+    <button class="nav-item" onclick="go('greenfield',this)" type="button" data-page="greenfield">&#x1F331; Greenfield</button>
+    <button class="nav-item" onclick="go('other',this)" type="button" data-page="other">&#x1F4CB; Other Projects</button>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main" id="main-content">
+
+    <!-- HOME PAGE -->
+    <section class="page active" id="pg-home" aria-label="Operations Overview">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">Operations Overview</h2>
+          <div class="sec-sub">All departments — live RAG status</div>
+        </div>
+      </div>
+      <div class="rag-strip" id="rag-strip" role="list" aria-label="Department status indicators"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-rag">
+          <h3 class="card-title">Portfolio Health</h3>
+          <div class="card-sub">RAG distribution across all departments</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="c-rag" aria-label="Portfolio health chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-cap-reg">
+          <h3 class="card-title">Capex by Region</h3>
+          <div class="card-sub">Budget vs utilised YTD (AED)</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="c-cap-reg" aria-label="Capex by region chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card mb-20" data-table-id="t-home">
+        <h3 class="card-title">Department Summary</h3>
+        <div class="card-sub">Headline KPI per department</div>
+        <div class="tbl-wrap">
+          <table role="table" aria-label="Department summary">
+            <thead><tr><th scope="col">Department</th><th scope="col">Headline Metric</th><th scope="col">Value</th><th scope="col">Status</th></tr></thead>
+            <tbody id="t-home"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAINTENANCE PAGE -->
+    <section class="page" id="pg-maintenance" aria-label="Maintenance Operations">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">&#x1F527; Maintenance — Operations Overview</h2>
+          <div class="sec-sub">35 nursery sites — jobs, response times, site RAG</div>
+        </div>
+      </div>
+      <div class="kpi-row" id="k-maint" role="list" aria-label="Maintenance KPIs"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-maint-site">
+          <h3 class="card-title">Open Jobs by Site</h3>
+          <div class="card-sub">Top 10 sites by open job count</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="c-maint-site" aria-label="Open jobs by site chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-maint-cat">
+          <h3 class="card-title">Jobs by Category</h3>
+          <div class="card-sub">Planned vs reactive vs regulatory</div>
+          <div class="chart-wrap" style="height:260px"><canvas id="c-maint-cat" aria-label="Jobs by category chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" data-table-id="t-maint-jobs">
+        <h3 class="card-title">Jobs Register</h3>
+        <div class="card-sub">All active maintenance jobs</div>
+        <div class="tbl-wrap">
+          <table role="table" aria-label="Maintenance jobs register">
+            <thead><tr><th scope="col">Job ID</th><th scope="col">Site</th><th scope="col">Description</th><th scope="col">Category</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Est. Cost (AED)</th></tr></thead>
+            <tbody id="t-maint-jobs"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAPEX PAGE -->
+    <section class="page" id="pg-capex" aria-label="Capex Budget and Utilisation">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">&#x1F4B0; Capex — Budget &amp; Utilisation</h2>
+          <div class="sec-sub">2025-2026 capital expenditure per nursery</div>
+        </div>
+        <div class="restricted-tag" aria-label="Restricted access">&#x1F512; Restricted</div>
+      </div>
+      <div class="kpi-row" id="k-capex" role="list" aria-label="Capex KPIs"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-capex-reg">
+          <h3 class="card-title">Budget vs Utilised by Region</h3>
+          <div class="card-sub">AED — allocated vs spent YTD</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-capex-reg" aria-label="Budget vs utilised by region chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-capex-neg">
+          <h3 class="card-title">Over-Budget Sites</h3>
+          <div class="card-sub">Nurseries with negative balance</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-capex-neg" aria-label="Over-budget sites chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" data-table-id="t-capex">
+        <h3 class="card-title">Nursery Budget Detail</h3>
+        <div class="card-sub">EBITDA &middot; budget &middot; utilisation &middot; balance per nursery</div>
+        <div class="tbl-wrap">
+          <table role="table" aria-label="Nursery budget details">
+            <thead><tr><th scope="col">Nursery</th><th scope="col">EBITDA</th><th scope="col">Capex Budget</th><th scope="col">% of EBITDA</th><th scope="col">Utilised</th><th scope="col">Balance</th><th scope="col">Balance %</th><th scope="col">Request for Approval</th><th scope="col">Balance After</th></tr></thead>
+            <tbody id="t-capex"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROJECTS PAGE -->
+    <section class="page" id="pg-projects" aria-label="Project Management">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">&#x1F3D7; Project Management</h2>
+          <div class="sec-sub">Active projects — timeline, budget and RAG status</div>
+        </div>
+      </div>
+      <div class="kpi-row" id="k-pm" role="list" aria-label="Project KPIs"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-pm-status">
+          <h3 class="card-title">Projects by Status</h3>
+          <div class="card-sub">On track / at risk / delayed</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-pm-status" aria-label="Projects by status chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-pm-budget">
+          <h3 class="card-title">Budget vs Spend</h3>
+          <div class="card-sub">Per project (AED)</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-pm-budget" aria-label="Budget vs spend chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" data-table-id="t-pm">
+        <h3 class="card-title">Active Projects Register</h3>
+        <div class="tbl-wrap">
+          <table role="table" aria-label="Active projects register">
+            <thead><tr><th scope="col">ID</th><th scope="col">Project</th><th scope="col">Owner</th><th scope="col">Target End</th><th scope="col">% Done</th><th scope="col">Budget</th><th scope="col">Spent</th><th scope="col">Priority</th><th scope="col">RAG</th></tr></thead>
+            <tbody id="t-pm"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROCUREMENT PAGE -->
+    <section class="page" id="pg-procurement" aria-label="Procurement">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">&#x1F6D2; Procurement</h2>
+          <div class="sec-sub">Purchase orders, suppliers and spend tracking</div>
+        </div>
+        <div class="restricted-tag" aria-label="Restricted access">&#x1F512; Restricted</div>
+      </div>
+      <div class="kpi-row" id="k-proc" role="list" aria-label="Procurement KPIs"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-proc-status">
+          <h3 class="card-title">PO Status Breakdown</h3>
+          <div class="card-sub">Current status of all purchase orders</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-proc-status" aria-label="PO status breakdown chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-proc-spend">
+          <h3 class="card-title">Spend by Department</h3>
+          <div class="card-sub">AED — YTD spend distribution</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-proc-spend" aria-label="Spend by department chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" data-table-id="t-proc">
+        <h3 class="card-title">Purchase Order Register</h3>
+        <div class="tbl-wrap">
+          <table role="table" aria-label="Purchase order register">
+            <thead><tr><th scope="col">PO Number</th><th scope="col">Supplier</th><th scope="col">Description</th><th scope="col">Dept</th><th scope="col">Value (AED)</th><th scope="col">Status</th><th scope="col">Expected Delivery</th></tr></thead>
+            <tbody id="t-proc"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- IT PAGE -->
+    <section class="page" id="pg-it" aria-label="IT Systems and Support">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">&#x1F4BB; IT — Systems &amp; Support</h2>
+          <div class="sec-sub">Tickets, projects and system health</div>
+        </div>
+      </div>
+      <div class="kpi-row" id="k-it" role="list" aria-label="IT KPIs"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-it-cat">
+          <h3 class="card-title">Tickets by Category</h3>
+          <div class="card-sub">Volume by issue type</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-it-cat" aria-label="Tickets by category chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-it-trend">
+          <h3 class="card-title">Open vs Resolved Trend</h3>
+          <div class="card-sub">Monthly comparison</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-it-trend" aria-label="Open vs resolved trend chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" data-table-id="t-it">
+        <h3 class="card-title">Open Tickets</h3>
+        <div class="tbl-wrap">
+          <table role="table" aria-label="IT open tickets">
+            <thead><tr><th scope="col">Ticket ID</th><th scope="col">Site</th><th scope="col">Category</th><th scope="col">Description</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Raised</th></tr></thead>
+            <tbody id="t-it"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- M&A PAGE -->
+    <section class="page" id="pg-ma" aria-label="Mergers and Acquisitions">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">&#x1F91D; M&amp;A — Deal Pipeline</h2>
+          <div class="sec-sub">Active deals, due diligence and pipeline value</div>
+        </div>
+        <div class="restricted-tag" aria-label="Strictly confidential">&#x1F512; Strictly Confidential</div>
+      </div>
+      <div class="kpi-row" id="k-ma" role="list" aria-label="M&A KPIs"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-ma-stage">
+          <h3 class="card-title">Deals by Stage</h3>
+          <div class="card-sub">Pipeline progression</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-ma-stage" aria-label="Deals by stage chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-ma-val">
+          <h3 class="card-title">Value by Stage</h3>
+          <div class="card-sub">AED — estimated deal value</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-ma-val" aria-label="Value by stage chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" data-table-id="t-ma">
+        <h3 class="card-title">Deal Register</h3>
+        <div class="tbl-wrap">
+          <table role="table" aria-label="Deal register">
+            <thead><tr><th scope="col">Deal ID</th><th scope="col">Target</th><th scope="col">Type</th><th scope="col">Value (AED)</th><th scope="col">Stage</th><th scope="col">Lead</th><th scope="col">Target Close</th><th scope="col">Probability</th></tr></thead>
+            <tbody id="t-ma"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- GREENFIELD PAGE -->
+    <section class="page" id="pg-greenfield" aria-label="Greenfield New Developments">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">&#x1F331; Greenfield — New Developments</h2>
+          <div class="sec-sub">New nursery pipeline — planning, construction and financial performance</div>
+        </div>
+      </div>
+      <div class="kpi-row" id="k-gf" role="list" aria-label="Greenfield KPIs"></div>
+      <div class="gf-grid" id="gf-site-cards"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-gf-ratio">
+          <h3 class="card-title">EBITDA : Rent Ratio</h3>
+          <div class="card-sub">Target minimum 5x per site</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-gf-ratio" aria-label="EBITDA to rent ratio chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-gf-capex">
+          <h3 class="card-title">Capex by Site</h3>
+          <div class="card-sub">Development investment (AED)</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-gf-capex" aria-label="Capex by site chart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OTHER PROJECTS PAGE -->
+    <section class="page" id="pg-other" aria-label="Other Projects">
+      <div class="sec-head">
+        <div>
+          <h2 class="sec-title">&#x1F4CB; Other Projects</h2>
+          <div class="sec-sub">Miscellaneous and cross-departmental initiatives</div>
+        </div>
+      </div>
+      <div class="kpi-row" id="k-op" role="list" aria-label="Other projects KPIs"></div>
+      <div class="grid-2">
+        <div class="card" data-chart-id="c-op-cat">
+          <h3 class="card-title">Projects by Category</h3>
+          <div class="card-sub">Distribution across project types</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-op-cat" aria-label="Projects by category chart"></canvas></div>
+        </div>
+        <div class="card" data-chart-id="c-op-status">
+          <h3 class="card-title">Projects by Status</h3>
+          <div class="card-sub">On track / at risk / delayed</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-op-status" aria-label="Projects by status chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" data-table-id="t-op">
+        <h3 class="card-title">Projects Register</h3>
+        <div class="tbl-wrap">
+          <table role="table" aria-label="Other projects register">
+            <thead><tr><th scope="col">ID</th><th scope="col">Project</th><th scope="col">Category</th><th scope="col">Owner</th><th scope="col">% Done</th><th scope="col">Budget</th><th scope="col">Priority</th><th scope="col">RAG</th></tr></thead>
+            <tbody id="t-op"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div><!-- /app -->
+
+<!-- JavaScript Modules (load order matters) -->
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/graph.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
