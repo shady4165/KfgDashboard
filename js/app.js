@@ -293,6 +293,19 @@
   }
 
   /* ══════════════════════════════════════════════
+     PAGE TAB SWITCHING
+  ══════════════════════════════════════════════ */
+  function switchPageTab(btn, pageId, tabId) {
+    var page = document.getElementById(pageId);
+    if (!page) return;
+    page.querySelectorAll('.page-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    page.querySelectorAll('.tab-pane').forEach(function (p) { p.classList.remove('active'); });
+    var pane = document.getElementById(pageId + '-' + tabId);
+    if (pane) pane.classList.add('active');
+  }
+
+  /* ══════════════════════════════════════════════
      NAVIGATION
   ══════════════════════════════════════════════ */
   function go(name, el) {
@@ -302,6 +315,11 @@
     var page = $('pg-' + name);
     if (page) page.classList.add('active');
     if (el) el.classList.add('active');
+
+    // Update topbar breadcrumb label
+    var labelEl = $('topbar-page-label');
+    if (labelEl && el) labelEl.textContent = el.textContent.trim();
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Delegate to dashboard module to build/refresh the page content
@@ -385,6 +403,7 @@
   window.go = go;
   window.goByKey = goByKey;
   window.logout = logout;
+  window.switchPageTab = switchPageTab;
 
   /* ══════════════════════════════════════════════
      BOOT
