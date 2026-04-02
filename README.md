@@ -1,6 +1,6 @@
-# KFG Executive Dashboard
+# Executive Dashboard
 
-> Senior Management Operations Hub — Kids First Group L.L.C
+> Senior Management Operations Hub
 
 A fully client-side executive dashboard that reads live data from SharePoint Excel files
 via Microsoft Graph API, secured with Azure AD (Microsoft Entra ID) authentication.
@@ -20,7 +20,7 @@ via Microsoft Graph API, secured with Azure AD (Microsoft Entra ID) authenticati
 ### STEP 1 — Register an Azure AD Application (10 minutes)
 
 1. Go to **[https://portal.azure.com](https://portal.azure.com)** and sign in with your
-   `@kidsfirstgroup.com` Microsoft 365 account.
+   `@` Microsoft 365 account.
 
 2. In the search bar type **"App registrations"** → click it → click **"+ New registration"**.
 
@@ -28,10 +28,10 @@ via Microsoft Graph API, secured with Azure AD (Microsoft Entra ID) authenticati
 
    | Field | Value |
    |-------|-------|
-   | Name | `KFG Executive Dashboard` |
+   | Name | `Executive Dashboard` |
    | Supported account types | **Accounts in this organizational directory only** |
    | Redirect URI — platform | **Single-page application (SPA)** |
-   | Redirect URI — value | `https://<your-github-username>.github.io/KfgDashboard/` |
+   | Redirect URI — value | `https://<your-github-username>.github.io/Dashboard/` |
 
    > Replace `<your-github-username>` with your actual GitHub username.
 
@@ -47,7 +47,7 @@ via Microsoft Graph API, secured with Azure AD (Microsoft Entra ID) authenticati
    - `Sites.Read.All`
    - `Files.Read.All`
 
-7. Click **"Grant admin consent for Kids First Group"** → confirm **Yes**.
+7. Click **"Grant admin consent for "** → confirm **Yes**.
 
 8. In the left sidebar click **"Authentication"** and confirm:
    - The SPA redirect URI is listed correctly.
@@ -61,7 +61,7 @@ via Microsoft Graph API, secured with Azure AD (Microsoft Entra ID) authenticati
 **First, create the repository on GitHub:**
 
 1. Go to [https://github.com/new](https://github.com/new)
-2. Repository name: `KfgDashboard`
+2. Repository name: `Dashboard`
 3. Visibility: **Private** (recommended — protected by Azure AD anyway)
 4. Do **NOT** tick "Add a README" (you already have one)
 5. Click **"Create repository"**
@@ -72,7 +72,7 @@ Open a terminal (Git Bash or PowerShell) and run these commands one by one:
 
 ```bash
 # 1. Go to your project folder
-cd "C:\Users\Shady\OneDrive - Kids First Group L.L.C\Documents\KfgDashboard"
+cd
 
 # 2. Initialise git
 git init
@@ -87,11 +87,11 @@ echo Thumbs.db >> .gitignore
 git add index.html css/ js/ config/ README.md .gitignore
 
 # 5. Create your first commit
-git commit -m "Initial commit: KFG Executive Dashboard"
+git commit -m "Initial commit: Executive Dashboard"
 
 # 6. Connect to your GitHub repository
 #    Replace YOUR_USERNAME with your actual GitHub username
-git remote add origin https://github.com/YOUR_USERNAME/KfgDashboard.git
+git remote add origin https://github.com/YOUR_USERNAME/Dashboard.git
 
 # 7. Push to GitHub
 git push -u origin main
@@ -112,7 +112,7 @@ git push -u origin main
 4. Click **"Save"**.
 5. Wait ~2 minutes. Your live URL will appear at the top of the Pages settings:
    ```
-   https://YOUR_USERNAME.github.io/KfgDashboard/
+   https://YOUR_USERNAME.github.io/Dashboard/
    ```
 6. Click the link to verify the dashboard loads.
 
@@ -123,11 +123,11 @@ git push -u origin main
 Now that your GitHub Pages URL is confirmed:
 
 1. Go back to **[portal.azure.com](https://portal.azure.com)**
-2. App registrations → **KFG Executive Dashboard** → **Authentication**
+2. App registrations → **Executive Dashboard** → **Authentication**
 3. Under "Single-page application" → click **"Add URI"**
 4. Paste your GitHub Pages URL (with trailing slash):
    ```
-   https://YOUR_USERNAME.github.io/KfgDashboard/
+   https://YOUR_USERNAME.github.io/Dashboard/
    ```
 5. Also add a localhost URI for future local development:
    ```
@@ -144,16 +144,16 @@ Now that your GitHub Pages URL is confirmed:
 
    **SharePoint Site URL** — paste your SharePoint site, for example:
    ```
-   https://kfguae.sharepoint.com/sites/ExecutiveDashboard
+   https://.sharepoint.com/sites
    ```
 
    **Azure App Client ID** — paste the Client ID you saved in Step 1:
    ```
-   12345678-abcd-1234-efgh-123456789abc
+
    ```
 
 3. Click **"Connect & Sign In with Microsoft"**.
-4. A Microsoft login popup appears — sign in with `shady.sabbagh@kidsfirstgroup.com`.
+4. A Microsoft login popup appears — sign in with ``.
 5. Approve the permissions when prompted (only happens once).
 6. The dashboard loads your live SharePoint Excel data automatically.
 
@@ -164,7 +164,7 @@ Now that your GitHub Pages URL is confirmed:
 Whenever you make changes to the project files, push them to GitHub:
 
 ```bash
-cd "C:\Users\Shady\OneDrive - Kids First Group L.L.C\Documents\KfgDashboard"
+cd
 
 git add -A
 git commit -m "Update: describe your change here"
@@ -177,7 +177,7 @@ GitHub Pages automatically re-deploys within ~1 minute.
 
 ## Admin Panel
 
-Once signed in as `shady.sabbagh@kidsfirstgroup.com`, an **Admin** button appears in the top bar.
+Once signed in as ``, an **Admin** button appears in the top bar.
 
 | Action | How |
 |--------|-----|
@@ -230,7 +230,7 @@ The dashboard is pre-configured with a demo SharePoint URL. To connect your real
 ## File Structure
 
 ```
-KfgDashboard/
+Dashboard/
 ├── index.html          # All 9 page sections, login screen, navigation
 ├── css/
 │   └── styles.css      # Master stylesheet (WCAG 2.1 AA, responsive, print)
@@ -265,10 +265,10 @@ Browser opens dashboard URL
         │
         ▼
   MSAL loginPopup() → Microsoft login window opens
-  User signs in with @kidsfirstgroup.com account
+  User signs in with@ account
         │
         ▼
-  Domain check: must be @kidsfirstgroup.com
+  Domain check: must be @account
   Admin check:  is email in admin list?
         │
         ▼
@@ -292,7 +292,7 @@ Browser opens dashboard URL
 - No secrets or credentials are ever stored in the code or repository.
 - The Azure Client ID is not a secret — it is public by design for SPA applications.
 - Authentication uses OAuth 2.0 PKCE (no client secret needed).
-- Only `@kidsfirstgroup.com` accounts can access the dashboard.
+- Only `@account` accounts can access the dashboard.
 - Tokens are stored in `sessionStorage` only (cleared when browser tab closes).
 - GitHub Pages forces HTTPS — all connections are encrypted.
 
@@ -310,9 +310,5 @@ Browser opens dashboard URL
 | Data not refreshing | Check that your account has read access to the SharePoint Excel files |
 
 ---
-
-## Admin Contact
-
-**Shady Sabbagh** — shady.sabbagh@kidsfirstgroup.com
 
 For Azure AD / Microsoft 365 issues, visit: [https://portal.azure.com](https://portal.azure.com)
