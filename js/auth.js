@@ -235,17 +235,18 @@
       throw new Error('[KFGAuth] Must call init() before login().');
     }
 
+    // Request all scopes at login so user consents once — avoids separate popups later
     var loginRequest = {
-      scopes: LOGIN_SCOPES,
+      scopes: API_SCOPES,
     };
 
     try {
-      // Attempt popup login
+      // Attempt popup login with full scopes
       var response = await msalInstance.loginPopup(loginRequest);
 
       msalInstance.setActiveAccount(response.account);
 
-      // Use the login token (User.Read) to fetch profile — no extra consent needed
+      // Use the login token to fetch profile
       var profile = await fetchUserProfile(response.accessToken);
 
       if (!profile) {
