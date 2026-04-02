@@ -15,9 +15,9 @@
 
   /** SharePoint Excel files mapped by department key. */
   const SHEETS = {
-    maintenance: { file: '02_Maintenance_Dashboard.xlsx',         kpi: 'KPI Summary', data: 'Jobs Register',      sites: 'Sites Summary' },
+    maintenance: { file: '02_Maintenance_Dashboard.xlsx',         kpi: 'KPI Summary', data: 'Jobs Register',            sites: 'Sites Summary' },
     capex:       { file: '03_Capex_Dashboard_CEO.xlsx',           kpi: 'KPI Summary', data: 'Nursery Budget View' },
-    projects:    { file: '01_Project_Management_Dashboard.xlsx',  kpi: 'KPI Summary', data: 'Active Projects' },
+    projects:    { file: '01_Project_Management_Dashboard.xlsx',  kpi: 'KPI Summary', data: 'Active Projects Register' },
     procurement: { file: '04_Procurement_Dashboard.xlsx',         kpi: 'KPI Summary', data: 'PO Register' },
     it:          { file: '05_IT_Dashboard.xlsx',                  kpi: 'KPI Summary', data: 'Ticket Register' },
     ma:          { file: '06_MA_Dashboard.xlsx',                  kpi: 'KPI Summary', data: 'Deal Pipeline' },
