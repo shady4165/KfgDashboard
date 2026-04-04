@@ -170,14 +170,14 @@
     updateTimestamp();
     setProgress(20, 'Authenticating...');
 
-    // Initialize admin panel if user is admin
     if (window.KFGAuth.isAdmin() && window.KFGAdmin) {
       window.KFGAdmin.init();
     }
 
     setProgress(40, 'Fetching SharePoint data...');
 
-    // Initialize Graph API and fetch data
+    let liveLoaded = false;
+
     if (window.KFGGraph) {
       window.KFGGraph.init(APP_CONFIG.siteUrl);
 
@@ -187,7 +187,9 @@
           const transformed = window.KFGTransform
             ? window.KFGTransform.processLiveData(liveData)
             : liveData;
+
           window.KFGDashboard.setData(transformed);
+          liveLoaded = true;
         }
       } catch (err) {
         console.warn('Could not fetch live data, falling back to demo:', err);
@@ -199,7 +201,8 @@
 
     setProgress(80, 'Building dashboard...');
 
-    if (window.KFGDashboard) {
+    // Only init (which resets to demo) if live data did not load
+    if (window.KFGDashboard && !liveLoaded) {
       window.KFGDashboard.init();
       window.KFGDashboard.buildAll();
     }
@@ -207,7 +210,6 @@
     setProgress(100, 'Ready');
     hideLoader();
 
-    // Auto-refresh
     const interval = window.KFGConfig ? window.KFGConfig.getRefreshInterval() : 5;
     startAutoRefresh(interval);
   }
