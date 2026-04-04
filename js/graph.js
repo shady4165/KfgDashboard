@@ -39,6 +39,7 @@
   let _siteId    = null;
   let _driveId   = null;            // default (Documents) drive
   let _driveMap  = {};              // { libraryName: driveId }
+  let _workbookCache = {};          // { deptKey: XLSX workbook object }
   let _dataCache     = {};          // { cacheKey: { data, timestamp } }
   let _lastFetchTime = null;
   let _refreshTimer  = null;
@@ -349,24 +350,49 @@
         return null;
       }
 
-      // Access file directly by path within its library root
-      var encodedFile  = encodeURIComponent(dept.file);
-      var encodedSheet = encodeURIComponent(sheetName);
-      var rangeUrl = GRAPH_BASE + '/drives/' + driveId +
-                     '/root:/' + encodedFile +
-                     ':/workbook/worksheets/' + encodedSheet + '/usedRange';
+      // Get (or reuse cached) parsed workbook for this department's Excel file
+      var wb = _workbookCache[deptKey];
+      if (!wb) {
+        // Fetch the file metadata to get a pre-authenticated download URL
+        var encodedFile = encodeURIComponent(dept.file);
+        var metaUrl = GRAPH_BASE + '/drives/' + driveId +
+                      '/root:/' + encodedFile + '?$select=id,name,@microsoft.graph.downloadUrl';
+        var meta = await graphFetch(metaUrl);
+        if (!meta || !meta['@microsoft.graph.downloadUrl']) {
+          _warn('Could not get download URL for ' + dept.file);
+          return null;
+        }
 
-      _log('Fetching ' + deptKey + '/' + sheetKey + ' from library "' + dept.library + '"');
-      var rangeJson = await graphFetch(rangeUrl);
-      if (!rangeJson || !rangeJson.values) {
-        _warn('No data returned for sheet "' + sheetName + '" in ' + dept.file);
+        // Download the Excel file (no auth header needed — URL is pre-authenticated)
+        var dlResponse = await fetch(meta['@microsoft.graph.downloadUrl']);
+        if (!dlResponse.ok) {
+          _warn('Download failed for ' + dept.file + ': ' + dlResponse.status);
+          return null;
+        }
+
+        if (!window.XLSX) {
+          _warn('SheetJS library not loaded');
+          return null;
+        }
+
+        var arrayBuffer = await dlResponse.arrayBuffer();
+        wb = window.XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+        _workbookCache[deptKey] = wb;
+        _log('Downloaded and parsed ' + dept.file + ' — sheets: ' + wb.SheetNames.join(', '));
+      }
+
+      // Extract the requested worksheet
+      var ws = wb.Sheets[sheetName];
+      if (!ws) {
+        _warn('Sheet "' + sheetName + '" not found in ' + dept.file +
+              '. Available: ' + wb.SheetNames.join(', '));
         return null;
       }
 
-      var parsed = parseRange(rangeJson.values);
-      _dataCache[cacheKey] = { data: parsed, timestamp: Date.now() };
-      _log('Fetched ' + parsed.length + ' rows from ' + deptKey + '/' + sheetKey);
-      return parsed;
+      var rows = window.XLSX.utils.sheet_to_json(ws, { defval: null });
+      _dataCache[cacheKey] = { data: rows, timestamp: Date.now() };
+      _log('Parsed ' + rows.length + ' rows from ' + deptKey + '/' + sheetKey);
+      return rows;
     } catch (err) {
       _warn('fetchSheet error (' + deptKey + '/' + sheetKey + '): ' + (err.message || err));
       return null;
@@ -448,6 +474,7 @@
   async function refreshData() {
     _log('Refreshing data — clearing cache.');
     _dataCache = {};
+    _workbookCache = {};
     return fetchAllDepartments();
   }
 
