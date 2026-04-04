@@ -195,8 +195,19 @@
     var ids = await resolveSiteAndDrive();
     if (!ids) return null;
 
+    // Try direct path access first (more reliable than search for SharePoint drives)
+    var encodedName = encodeURIComponent(fileName);
+    var directUrl = GRAPH_BASE + '/drives/' + _driveId + '/root:/' + encodedName;
+    var directResult = await graphFetch(directUrl);
+    if (directResult && directResult.id) {
+      _fileIdCache[fileName] = directResult.id;
+      _log('Resolved file ID for ' + fileName + ': ' + directResult.id + ' (direct path)');
+      return directResult.id;
+    }
+
+    // Fall back to drive search
     var searchUrl = GRAPH_BASE + '/drives/' + _driveId +
-                    "/root/search(q='" + encodeURIComponent(fileName) + "')";
+                    "/root/search(q='" + encodedName + "')";
     var result = await graphFetch(searchUrl);
     if (!result || !result.value || result.value.length === 0) {
       _warn('File not found on SharePoint: ' + fileName);
@@ -208,12 +219,11 @@
       return item.name === fileName;
     });
     if (!match) {
-      // Fall back to first result if exact name match fails
       match = result.value[0];
     }
 
     _fileIdCache[fileName] = match.id;
-    _log('Resolved file ID for ' + fileName + ': ' + match.id);
+    _log('Resolved file ID for ' + fileName + ': ' + match.id + ' (search fallback)');
     return match.id;
   }
 

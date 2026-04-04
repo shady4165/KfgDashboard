@@ -994,7 +994,14 @@
      * @param {object} data - Structured data matching DEMO shape
      */
     setData(data) {
-      DATA = data;
+      // Normalize: each department must have a kpis object to be used;
+      // otherwise set to null so build functions fall back to demo gracefully.
+      var normalized = {};
+      ['maintenance','capex','projects','procurement','it','ma','greenfield','other'].forEach(function(k) {
+        var dept = data && data[k];
+        normalized[k] = (dept && dept.kpis) ? dept : null;
+      });
+      DATA = normalized;
       _isDemo = false;
       console.log('[KFGDashboard] Switched to live data.');
       refreshAll();

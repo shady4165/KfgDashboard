@@ -338,11 +338,14 @@
   ══════════════════════════════════════════════ */
   function logout() {
     if (refreshTimer) clearInterval(refreshTimer);
+    IS_DEMO = false;
+    // Clear all MSAL cached tokens so next login gets fresh consent
+    try { localStorage.clear(); } catch (e) { /* ignore */ }
     if (window.KFGAuth) {
       window.KFGAuth.logout();
+    } else {
+      showLogin();
     }
-    IS_DEMO = false;
-    showLogin();
   }
 
   /* ══════════════════════════════════════════════
