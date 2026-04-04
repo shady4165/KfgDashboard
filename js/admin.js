@@ -67,34 +67,29 @@
     const style = document.createElement('style');
     style.id = 'kfg-admin-styles';
     style.textContent = `
-      /* ---- Admin Toolbar ---- */
+      /* ---- Admin Toolbar (sidebar-embedded) ---- */
       .kfg-admin-toolbar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 52px;
-        background: #1e293b;
-        color: #f1f5f9;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-        padding: 0 24px;
-        z-index: 9000;
-        box-shadow: 0 -2px 12px rgba(0,0,0,0.25);
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px 12px 6px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        margin-top: 4px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        transform: translateY(100%);
-        transition: transform 0.3s ease;
+        font-size: 12px;
+        color: #94a3b8;
       }
       .kfg-admin-toolbar.visible {
-        transform: translateY(0);
+        display: flex;
       }
       .kfg-admin-toolbar-label {
-        font-weight: 600;
-        margin-right: 8px;
+        font-weight: 700;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #64748b;
         user-select: none;
+        margin-bottom: 2px;
       }
 
       /* Toggle switch */
@@ -140,22 +135,24 @@
         outline-offset: 2px;
       }
 
-      /* Toolbar buttons */
+      /* Toolbar buttons (sidebar style) */
       .kfg-admin-btn {
-        padding: 6px 14px;
-        border: 1px solid #475569;
+        padding: 5px 10px;
+        border: 1px solid rgba(255,255,255,0.12);
         border-radius: 6px;
-        background: transparent;
-        color: #f1f5f9;
+        background: rgba(255,255,255,0.06);
+        color: #cbd5e1;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 12px;
         font-family: inherit;
-        transition: background 0.15s, border-color 0.15s;
+        transition: background 0.15s;
         white-space: nowrap;
+        text-align: left;
+        width: 100%;
       }
       .kfg-admin-btn:hover {
-        background: #334155;
-        border-color: #64748b;
+        background: rgba(255,255,255,0.12);
+        border-color: rgba(255,255,255,0.2);
       }
       .kfg-admin-btn:focus-visible {
         outline: 2px solid #60a5fa;
@@ -945,21 +942,30 @@
       onClick: function () { importInput.click(); },
     });
 
+    const toggleRow = el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+      el('span', { className: 'kfg-admin-toolbar-label', textContent: 'Admin Mode', style: { marginBottom: '0', flex: '1' } }),
+      toggleLabel
+    );
+
     toolbar = el('div', {
       className: 'kfg-admin-toolbar',
       role: 'toolbar',
       'aria-label': 'Admin toolbar',
     },
-      el('span', { className: 'kfg-admin-toolbar-label', textContent: 'Admin Mode' }),
-      toggleLabel,
-      el('span', { style: { width: '1px', height: '24px', background: '#475569' } }),
+      toggleRow,
       settingsBtn,
       exportBtn,
       importBtn,
       importInput
     );
 
-    document.body.appendChild(toolbar);
+    // Append to sidebar footer instead of document body
+    var sidebarFooter = document.querySelector('.sidebar-footer');
+    if (sidebarFooter) {
+      sidebarFooter.appendChild(toolbar);
+    } else {
+      document.body.appendChild(toolbar);
+    }
   }
 
   /**

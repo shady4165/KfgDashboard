@@ -195,17 +195,47 @@
     var ids = await resolveSiteAndDrive();
     if (!ids) return null;
 
-    // Try direct path access first (more reliable than search for SharePoint drives)
     var encodedName = encodeURIComponent(fileName);
+
+    // 1. Try direct root path
     var directUrl = GRAPH_BASE + '/drives/' + _driveId + '/root:/' + encodedName;
     var directResult = await graphFetch(directUrl);
     if (directResult && directResult.id) {
       _fileIdCache[fileName] = directResult.id;
-      _log('Resolved file ID for ' + fileName + ': ' + directResult.id + ' (direct path)');
+      _log('Resolved ' + fileName + ' at root: ' + directResult.id);
       return directResult.id;
     }
 
-    // Fall back to drive search
+    // 2. List root children — log them for diagnostics, then search inside folders
+    var childrenUrl = GRAPH_BASE + '/drives/' + _driveId + '/root/children';
+    var childrenResult = await graphFetch(childrenUrl);
+    if (childrenResult && childrenResult.value && childrenResult.value.length > 0) {
+      var rootItems = childrenResult.value.map(function (f) { return f.name + (f.folder ? '/' : ''); });
+      _log('Drive root contents: ' + rootItems.join(', '));
+
+      // Check root list directly (some drives skip path-based access)
+      var rootFile = childrenResult.value.find(function (f) { return f.name === fileName; });
+      if (rootFile) {
+        _fileIdCache[fileName] = rootFile.id;
+        _log('Resolved ' + fileName + ' from root children: ' + rootFile.id);
+        return rootFile.id;
+      }
+
+      // Search one level deep inside each subfolder
+      var folders = childrenResult.value.filter(function (f) { return !!f.folder; });
+      for (var i = 0; i < folders.length; i++) {
+        var folderUrl = GRAPH_BASE + '/drives/' + _driveId + '/root:/' +
+                        encodeURIComponent(folders[i].name) + '/' + encodedName;
+        var folderResult = await graphFetch(folderUrl);
+        if (folderResult && folderResult.id) {
+          _fileIdCache[fileName] = folderResult.id;
+          _log('Resolved ' + fileName + ' in folder "' + folders[i].name + '": ' + folderResult.id);
+          return folderResult.id;
+        }
+      }
+    }
+
+    // 3. Drive search as last resort
     var searchUrl = GRAPH_BASE + '/drives/' + _driveId +
                     "/root/search(q='" + encodedName + "')";
     var result = await graphFetch(searchUrl);
@@ -214,7 +244,6 @@
       return null;
     }
 
-    // Find exact match (search can return partial matches)
     var match = result.value.find(function (item) {
       return item.name === fileName;
     });
