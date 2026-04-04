@@ -184,7 +184,10 @@
       try {
         const liveData = await window.KFGGraph.fetchAllDepartments();
         if (liveData && window.KFGDashboard) {
-          window.KFGDashboard.setData(liveData);
+          const transformed = window.KFGTransform
+            ? window.KFGTransform.processLiveData(liveData)
+            : liveData;
+          window.KFGDashboard.setData(transformed);
         }
       } catch (err) {
         console.warn('Could not fetch live data, falling back to demo:', err);
@@ -241,9 +244,12 @@
 
     if (!IS_DEMO && window.KFGGraph) {
       try {
-        const liveData = await window.KFGGraph.fetchAllDepartments();
+        const liveData = await window.KFGGraph.refreshData();
         if (liveData && window.KFGDashboard) {
-          window.KFGDashboard.setData(liveData);
+          const transformed = window.KFGTransform
+            ? window.KFGTransform.processLiveData(liveData)
+            : liveData;
+          window.KFGDashboard.setData(transformed);
         }
       } catch (err) {
         console.warn('Refresh failed:', err);

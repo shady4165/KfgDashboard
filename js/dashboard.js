@@ -401,8 +401,7 @@
 
   function buildMaintenance() {
     const D = DATA;
-    if (!D || !D.maintenance) return;
-    const m = D.maintenance;
+    const m = (D && D.maintenance) ? D.maintenance : DEMO.maintenance;
 
     // KPIs
     const kpiEl = document.getElementById('k-maint');
@@ -456,8 +455,7 @@
 
   function buildCapex() {
     const D = DATA;
-    if (!D || !D.capex) return;
-    const c = D.capex;
+    const c = (D && D.capex) ? D.capex : DEMO.capex;
 
     // KPIs
     const kpiEl = document.getElementById('k-capex');
@@ -524,8 +522,7 @@
 
   function buildProjects() {
     const D = DATA;
-    if (!D || !D.projects) return;
-    const p = D.projects;
+    const p = (D && D.projects) ? D.projects : DEMO.projects;
 
     // KPIs
     const kpiEl = document.getElementById('k-pm');
@@ -583,8 +580,7 @@
 
   function buildProcurement() {
     const D = DATA;
-    if (!D || !D.procurement) return;
-    const pr = D.procurement;
+    const pr = (D && D.procurement) ? D.procurement : DEMO.procurement;
 
     // KPIs
     const kpiEl = document.getElementById('k-proc');
@@ -636,8 +632,7 @@
 
   function buildIT() {
     const D = DATA;
-    if (!D || !D.it) return;
-    const it = D.it;
+    const it = (D && D.it) ? D.it : DEMO.it;
 
     // KPIs
     const kpiEl = document.getElementById('k-it');
@@ -692,8 +687,7 @@
 
   function buildMA() {
     const D = DATA;
-    if (!D || !D.ma) return;
-    const ma = D.ma;
+    const ma = (D && D.ma) ? D.ma : DEMO.ma;
 
     // KPIs
     const kpiEl = document.getElementById('k-ma');
@@ -747,8 +741,7 @@
 
   function buildGreenfield() {
     const D = DATA;
-    if (!D || !D.greenfield) return;
-    const g = D.greenfield;
+    const g = (D && D.greenfield) ? D.greenfield : DEMO.greenfield;
 
     // KPIs
     const kpiEl = document.getElementById('k-gf');
@@ -818,8 +811,7 @@
 
   function buildOther() {
     const D = DATA;
-    if (!D || !D.other) return;
-    const o = D.other;
+    const o = (D && D.other) ? D.other : DEMO.other;
 
     // KPIs
     const kpiEl = document.getElementById('k-op');
@@ -994,16 +986,20 @@
      * @param {object} data - Structured data matching DEMO shape
      */
     setData(data) {
-      // Normalize: each department must have a kpis object to be used;
-      // otherwise set to null so build functions fall back to demo gracefully.
+      // Accept transformed live data; fall back to demo for any null department
       var normalized = {};
       ['maintenance','capex','projects','procurement','it','ma','greenfield','other'].forEach(function(k) {
         var dept = data && data[k];
-        normalized[k] = (dept && dept.kpis) ? dept : null;
+        // Use live data if it has a kpis object with at least one non-null key
+        if (dept && dept.kpis && Object.keys(dept.kpis).length > 0) {
+          normalized[k] = dept;
+        } else {
+          normalized[k] = null; // falls back to DEMO in build functions
+        }
       });
       DATA = normalized;
       _isDemo = false;
-      console.log('[KFGDashboard] Switched to live data.');
+      console.log('[KFGDashboard] Switched to live data:', normalized);
       refreshAll();
     },
 

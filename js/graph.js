@@ -18,14 +18,14 @@
    * Each file lives in its own named document library (library field).
    */
   const SHEETS = {
-    maintenance: { file: '02_Maintenance_Dashboard.xlsx',        library: 'Maintenance',        kpi: 'KPI Summary', data: 'Jobs Register',            sites: 'Sites Summary' },
-    capex:       { file: '03_Capex_Dashboard_CEO.xlsx',          library: 'Capex',              kpi: 'KPI Summary', data: 'Nursery Budget View' },
-    projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: 'KPI Summary', data: 'Active Projects Register' },
-    procurement: { file: '04_Procurement_Dashboard.xlsx',        library: 'Procurement',        kpi: 'KPI Summary', data: 'PO Register' },
-    it:          { file: '05_IT_Dashboard.xlsx',                 library: 'IT',                 kpi: 'KPI Summary', data: 'Ticket Register' },
-    ma:          { file: '06_MA_Dashboard.xlsx',                 library: 'M&A',                kpi: 'KPI Summary', data: 'Deal Pipeline' },
-    greenfield:  { file: '07_Greenfield_Dashboard_CEO.xlsx',     library: 'Greenfield',         kpi: 'KPI Summary', data: 'Pipeline Overview' },
-    other:       { file: '08_Other_Projects_Dashboard.xlsx',     library: 'Other Projects',     kpi: 'KPI Summary', data: 'Projects Register' },
+    maintenance: { file: '02_Maintenance_Dashboard.xlsx',        library: 'Maintenance',        kpi: '📊 KPI Summary', data: '🔧 Jobs Register',        sites: '🏢 Sites Summary' },
+    capex:       { file: '03_Capex_Dashboard_CEO.xlsx',          library: 'Capex',              kpi: '📊 KPI Summary', data: '📊 Nursery Budget View' },
+    projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: '📊 KPI Summary', data: '📁 Active Projects' },
+    procurement: { file: '04_Procurement_Dashboard.xlsx',        library: 'Procurement',        kpi: '📊 KPI Summary', data: '📋 PO Register',          dataHeaderRow: 2 },
+    it:          { file: '05_IT_Dashboard.xlsx',                 library: 'IT',                 kpi: '📊 KPI Summary', data: '🎫 Ticket Register' },
+    ma:          { file: '06_MA_Dashboard.xlsx',                 library: 'M&A',                kpi: '📊 KPI Summary', data: '🤝 Deal Pipeline',        dataHeaderRow: 2 },
+    greenfield:  { file: '07_Greenfield_Dashboard_CEO.xlsx',     library: 'Greenfield',         kpi: '📊 KPI Summary', data: '🏗 Pipeline Overview',    dataHeaderRow: 2 },
+    other:       { file: '08_Other_Projects_Dashboard.xlsx',     library: 'Other Projects',     kpi: '📊 KPI Summary', data: '📁 Projects Register' },
   };
 
   /** Default auto-refresh interval in milliseconds (5 minutes). */
@@ -39,6 +39,7 @@
   let _siteId    = null;
   let _driveId   = null;            // default (Documents) drive
   let _driveMap  = {};              // { libraryName: driveId }
+  let _fileIdCache   = {};          // { fileName: itemId }
   let _workbookCache = {};          // { deptKey: XLSX workbook object }
   let _dataCache     = {};          // { cacheKey: { data, timestamp } }
   let _lastFetchTime = null;
@@ -353,11 +354,34 @@
       // Get (or reuse cached) parsed workbook for this department's Excel file
       var wb = _workbookCache[deptKey];
       if (!wb) {
-        // Fetch the file metadata to get a pre-authenticated download URL
         var encodedFile = encodeURIComponent(dept.file);
-        var metaUrl = GRAPH_BASE + '/drives/' + driveId +
-                      '/root:/' + encodedFile + '?$select=id,name,@microsoft.graph.downloadUrl';
-        var meta = await graphFetch(metaUrl);
+        var meta = null;
+
+        // 1. Try the file at the root of the library drive
+        meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
+          '/root:/' + encodedFile + '?$select=id,name,@microsoft.graph.downloadUrl');
+
+        // 2. Try the default SharePoint "General" subfolder
+        if (!meta || !meta['@microsoft.graph.downloadUrl']) {
+          meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
+            '/root:/General/' + encodedFile + '?$select=id,name,@microsoft.graph.downloadUrl');
+        }
+
+        // 3. Search the entire drive for the file by name
+        if (!meta || !meta['@microsoft.graph.downloadUrl']) {
+          _log('Searching drive for ' + dept.file);
+          var sr = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
+            "/root/search(q='" + encodeURIComponent(dept.file) + "')");
+          if (sr && sr.value && sr.value.length > 0) {
+            var hit = sr.value.find(function (i) { return i.name === dept.file; }) || sr.value[0];
+            if (hit) {
+              _log('Found ' + dept.file + ' via search at: ' + (hit.parentReference ? hit.parentReference.path : 'unknown path'));
+              meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
+                '/items/' + hit.id + '?$select=id,name,@microsoft.graph.downloadUrl');
+            }
+          }
+        }
+
         if (!meta || !meta['@microsoft.graph.downloadUrl']) {
           _warn('Could not get download URL for ' + dept.file);
           return null;
@@ -381,15 +405,26 @@
         _log('Downloaded and parsed ' + dept.file + ' — sheets: ' + wb.SheetNames.join(', '));
       }
 
-      // Extract the requested worksheet
-      var ws = wb.Sheets[sheetName];
+      // Extract the requested worksheet — match by normalised name so emoji
+      // prefixes and case differences do not cause a miss.
+      function normalizeSheetName(name) {
+        return String(name || '').replace(/^[^\p{L}\p{N}]+/gu, '').trim().toLowerCase();
+      }
+      var actualSheetName = wb.SheetNames.find(function (n) {
+        return normalizeSheetName(n) === normalizeSheetName(sheetName);
+      });
+      var ws = actualSheetName ? wb.Sheets[actualSheetName] : null;
       if (!ws) {
         _warn('Sheet "' + sheetName + '" not found in ' + dept.file +
               '. Available: ' + wb.SheetNames.join(', '));
         return null;
       }
 
-      var rows = window.XLSX.utils.sheet_to_json(ws, { defval: null });
+      var sheetJsonOpts = { defval: null };
+      if (sheetKey === 'data' && dept.dataHeaderRow) {
+        sheetJsonOpts.range = dept.dataHeaderRow;
+      }
+      var rows = window.XLSX.utils.sheet_to_json(ws, sheetJsonOpts);
       _dataCache[cacheKey] = { data: rows, timestamp: Date.now() };
       _log('Parsed ' + rows.length + ' rows from ' + deptKey + '/' + sheetKey);
       return rows;
