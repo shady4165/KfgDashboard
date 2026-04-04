@@ -18,14 +18,47 @@
    * Each file lives in its own named document library (library field).
    */
   const SHEETS = {
-    maintenance: { file: '02_Maintenance_Dashboard.xlsx',        library: 'Maintenance',        kpi: '📊 KPI Summary', data: '🔧 Jobs Register',        sites: '🏢 Sites Summary' },
-    capex:       { file: '03_Capex_Dashboard_CEO.xlsx',          library: 'Capex',              kpi: '📊 KPI Summary', data: '📊 Nursery Budget View' },
-    projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: '📊 KPI Summary', data: '📁 Active Projects' },
-    procurement: { file: '04_Procurement_Dashboard.xlsx',        library: 'Procurement',        kpi: '📊 KPI Summary', data: '📋 PO Register',          dataHeaderRow: 2 },
-    it:          { file: '05_IT_Dashboard.xlsx',                 library: 'IT',                 kpi: '📊 KPI Summary', data: '🎫 Ticket Register' },
-    ma:          { file: '06_MA_Dashboard.xlsx',                 library: 'M&A',                kpi: '📊 KPI Summary', data: '🤝 Deal Pipeline',        dataHeaderRow: 2 },
-    greenfield:  { file: '07_Greenfield_Dashboard_CEO.xlsx',     library: 'Greenfield',         kpi: '📊 KPI Summary', data: '🏗 Pipeline Overview',    dataHeaderRow: 2 },
-    other:       { file: '08_Other_Projects_Dashboard.xlsx',     library: 'Other Projects',     kpi: '📊 KPI Summary', data: '📁 Projects Register' },
+    maintenance: {
+      file: '02_Maintenance_Dashboard.xlsx', library: 'Maintenance',
+      kpi: '📊 KPI Summary',       kpiHeaderRow:   2,
+      data: '🔧 Jobs Register',    dataHeaderRow:  1,
+      sites: '🏢 Sites Summary',   sitesHeaderRow: 1,
+    },
+    capex: {
+      file: '03_Capex_Dashboard_CEO.xlsx', library: 'Capex',
+      kpi: '📊 KPI Summary',            kpiHeaderRow:  2,
+      data: '📊 Nursery Budget View',   dataHeaderRow: 1,
+    },
+    projects: {
+      file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management',
+      kpi: '📊 KPI Summary',      kpiHeaderRow:  2,
+      data: '📁 Active Projects', dataHeaderRow: 1,
+    },
+    procurement: {
+      file: '04_Procurement_Dashboard.xlsx', library: 'Procurement',
+      kpi: '📊 KPI Summary',   kpiHeaderRow:  3,
+      data: '📋 PO Register',  dataHeaderRow: 2,
+    },
+    it: {
+      file: '05_IT_Dashboard.xlsx', library: 'IT',
+      kpi: '📊 KPI Summary',       kpiHeaderRow:  2,
+      data: '🎫 Ticket Register',  dataHeaderRow: 1,
+    },
+    ma: {
+      file: '06_MA_Dashboard.xlsx', library: 'M&A',
+      kpi: '📊 KPI Summary',     kpiHeaderRow:  3,
+      data: '🤝 Deal Pipeline',  dataHeaderRow: 2,
+    },
+    greenfield: {
+      file: '07_Greenfield_Dashboard_CEO.xlsx', library: 'Greenfield',
+      kpi: '📊 KPI Summary',        kpiHeaderRow:  2,
+      data: '🏗 Pipeline Overview', dataHeaderRow: 2,
+    },
+    other: {
+      file: '08_Other_Projects_Dashboard.xlsx', library: 'Other Projects',
+      kpi: '📊 KPI Summary',        kpiHeaderRow:  2,
+      data: '📁 Projects Register', dataHeaderRow: 1,
+    },
   };
 
   /** Default auto-refresh interval in milliseconds (5 minutes). */
@@ -481,9 +514,9 @@
       }
 
       var sheetJsonOpts = { defval: null };
-      if (sheetKey === 'data' && dept.dataHeaderRow) {
-        sheetJsonOpts.range = dept.dataHeaderRow;
-      }
+      if (sheetKey === 'kpi'   && dept.kpiHeaderRow   !== undefined) { sheetJsonOpts.range = dept.kpiHeaderRow;   }
+      if (sheetKey === 'data'  && dept.dataHeaderRow  !== undefined) { sheetJsonOpts.range = dept.dataHeaderRow;  }
+      if (sheetKey === 'sites' && dept.sitesHeaderRow !== undefined) { sheetJsonOpts.range = dept.sitesHeaderRow; }
       var rows = window.XLSX.utils.sheet_to_json(ws, sheetJsonOpts);
       _dataCache[cacheKey] = { data: rows, timestamp: Date.now() };
       _log('Parsed ' + rows.length + ' rows from ' + deptKey + '/' + sheetKey);
