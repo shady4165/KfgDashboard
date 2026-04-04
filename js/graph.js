@@ -129,6 +129,61 @@
   }
 
   // ---------------------------------------------------------------------------
+  // graphFetchBinary — authenticated binary (ArrayBuffer) fetch
+  // ---------------------------------------------------------------------------
+
+  async function graphFetchBinary(url, _retries) {
+    if (_retries === undefined) { _retries = 0; }
+    var MAX_RETRIES = 3;
+
+    try {
+      if (!window.KFGAuth || typeof window.KFGAuth.getToken !== 'function') {
+        _warn('KFGAuth module not loaded — cannot obtain access token.');
+        return null;
+      }
+
+      var token = await window.KFGAuth.getToken();
+      if (!token) {
+        _warn('No access token available.');
+        return null;
+      }
+
+      var response = await fetch(url, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+
+      if (response.status === 401) {
+        _warn('401 received on binary fetch — attempting token refresh.');
+        if (_retries < MAX_RETRIES && typeof window.KFGAuth.login === 'function') {
+          await window.KFGAuth.login();
+          return graphFetchBinary(url, _retries + 1);
+        }
+        return null;
+      }
+
+      if (response.status === 429) {
+        var retryAfter = parseInt(response.headers.get('Retry-After') || '5', 10);
+        _warn('429 rate-limited on binary fetch — retrying after ' + retryAfter + 's.');
+        if (_retries < MAX_RETRIES) {
+          await _sleep(retryAfter * 1000);
+          return graphFetchBinary(url, _retries + 1);
+        }
+        return null;
+      }
+
+      if (!response.ok) {
+        _warn('Binary Graph API error: ' + response.status + ' ' + response.statusText + ' — ' + url);
+        return null;
+      }
+
+      return await response.arrayBuffer();
+    } catch (err) {
+      _warn('Binary network error: ' + (err.message || err) + ' — ' + url);
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // resolveSiteAndDrive — one-time site/drive discovery
   // ---------------------------------------------------------------------------
 
@@ -354,43 +409,49 @@
       // Get (or reuse cached) parsed workbook for this department's Excel file
       var wb = _workbookCache[deptKey];
       if (!wb) {
+        var itemId = null;
         var encodedFile = encodeURIComponent(dept.file);
-        var meta = null;
 
         // 1. Try the file at the root of the library drive
-        meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
-          '/root:/' + encodedFile + '?$select=id,name,@microsoft.graph.downloadUrl');
+        var meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId + '/root:/' + encodedFile);
+        if (meta && meta.id) {
+          itemId = meta.id;
+        }
 
         // 2. Try the default SharePoint "General" subfolder
-        if (!meta || !meta['@microsoft.graph.downloadUrl']) {
-          meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
-            '/root:/General/' + encodedFile + '?$select=id,name,@microsoft.graph.downloadUrl');
+        if (!itemId) {
+          meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId + '/root:/General/' + encodedFile);
+          if (meta && meta.id) {
+            itemId = meta.id;
+          }
         }
 
         // 3. Search the entire drive for the file by name
-        if (!meta || !meta['@microsoft.graph.downloadUrl']) {
+        if (!itemId) {
           _log('Searching drive for ' + dept.file);
           var sr = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
-            "/root/search(q='" + encodeURIComponent(dept.file) + "')");
+            "/root/search(q='" + dept.file.replace(/'/g, "''") + "')");
           if (sr && sr.value && sr.value.length > 0) {
             var hit = sr.value.find(function (i) { return i.name === dept.file; }) || sr.value[0];
-            if (hit) {
-              _log('Found ' + dept.file + ' via search at: ' + (hit.parentReference ? hit.parentReference.path : 'unknown path'));
-              meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
-                '/items/' + hit.id + '?$select=id,name,@microsoft.graph.downloadUrl');
+            if (hit && hit.id) {
+              itemId = hit.id;
+              _log('Found ' + dept.file + ' via search at: ' +
+                (hit.parentReference ? hit.parentReference.path : 'unknown path'));
             }
           }
         }
 
-        if (!meta || !meta['@microsoft.graph.downloadUrl']) {
-          _warn('Could not get download URL for ' + dept.file);
+        if (!itemId) {
+          _warn('Could not resolve file ID for ' + dept.file);
           return null;
         }
 
-        // Download the Excel file (no auth header needed — URL is pre-authenticated)
-        var dlResponse = await fetch(meta['@microsoft.graph.downloadUrl']);
-        if (!dlResponse.ok) {
-          _warn('Download failed for ' + dept.file + ': ' + dlResponse.status);
+        // Download via /content endpoint using authenticated fetch (no @downloadUrl needed)
+        var arrayBuffer = await graphFetchBinary(
+          GRAPH_BASE + '/drives/' + driveId + '/items/' + itemId + '/content'
+        );
+        if (!arrayBuffer) {
+          _warn('Download failed for ' + dept.file);
           return null;
         }
 
@@ -399,7 +460,6 @@
           return null;
         }
 
-        var arrayBuffer = await dlResponse.arrayBuffer();
         wb = window.XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
         _workbookCache[deptKey] = wb;
         _log('Downloaded and parsed ' + dept.file + ' — sheets: ' + wb.SheetNames.join(', '));
