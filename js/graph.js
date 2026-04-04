@@ -13,16 +13,19 @@
 
   const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 
-  /** SharePoint Excel files mapped by department key. */
+  /**
+   * SharePoint Excel files mapped by department key.
+   * Each file lives in its own named document library (library field).
+   */
   const SHEETS = {
-    maintenance: { file: '02_Maintenance_Dashboard.xlsx',         kpi: 'KPI Summary', data: 'Jobs Register',            sites: 'Sites Summary' },
-    capex:       { file: '03_Capex_Dashboard_CEO.xlsx',           kpi: 'KPI Summary', data: 'Nursery Budget View' },
-    projects:    { file: '01_Project_Management_Dashboard.xlsx',  kpi: 'KPI Summary', data: 'Active Projects Register' },
-    procurement: { file: '04_Procurement_Dashboard.xlsx',         kpi: 'KPI Summary', data: 'PO Register' },
-    it:          { file: '05_IT_Dashboard.xlsx',                  kpi: 'KPI Summary', data: 'Ticket Register' },
-    ma:          { file: '06_MA_Dashboard.xlsx',                  kpi: 'KPI Summary', data: 'Deal Pipeline' },
-    greenfield:  { file: '07_Greenfield_Dashboard_CEO.xlsx',      kpi: 'KPI Summary', data: 'Pipeline Overview' },
-    other:       { file: '08_Other_Projects_Dashboard.xlsx',      kpi: 'KPI Summary', data: 'Projects Register' },
+    maintenance: { file: '02_Maintenance_Dashboard.xlsx',        library: 'Maintenance',        kpi: 'KPI Summary', data: 'Jobs Register',            sites: 'Sites Summary' },
+    capex:       { file: '03_Capex_Dashboard_CEO.xlsx',          library: 'Capex',              kpi: 'KPI Summary', data: 'Nursery Budget View' },
+    projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: 'KPI Summary', data: 'Active Projects Register' },
+    procurement: { file: '04_Procurement_Dashboard.xlsx',        library: 'Procurement',        kpi: 'KPI Summary', data: 'PO Register' },
+    it:          { file: '05_IT_Dashboard.xlsx',                 library: 'IT',                 kpi: 'KPI Summary', data: 'Ticket Register' },
+    ma:          { file: '06_MA_Dashboard.xlsx',                 library: 'M&A',                kpi: 'KPI Summary', data: 'Deal Pipeline' },
+    greenfield:  { file: '07_Greenfield_Dashboard_CEO.xlsx',     library: 'Greenfield',         kpi: 'KPI Summary', data: 'Pipeline Overview' },
+    other:       { file: '08_Other_Projects_Dashboard.xlsx',     library: 'Other Projects',     kpi: 'KPI Summary', data: 'Projects Register' },
   };
 
   /** Default auto-refresh interval in milliseconds (5 minutes). */
@@ -34,8 +37,8 @@
 
   let _siteUrl   = 'https://kfguae.sharepoint.com/sites/ExecutiveDashboard';
   let _siteId    = null;
-  let _driveId   = null;
-  let _fileIdCache   = {};          // { fileName: fileId }
+  let _driveId   = null;            // default (Documents) drive
+  let _driveMap  = {};              // { libraryName: driveId }
   let _dataCache     = {};          // { cacheKey: { data, timestamp } }
   let _lastFetchTime = null;
   let _refreshTimer  = null;
@@ -134,20 +137,18 @@
    * @returns {Promise<{siteId: string, driveId: string}|null>}
    */
   async function resolveSiteAndDrive() {
-    // Return cached values if available
+    // Return cached values if already resolved
     if (_siteId && _driveId) {
       return { siteId: _siteId, driveId: _driveId };
     }
 
     try {
-      // Parse host and relative path from the configured site URL
       var parsed   = new URL(_siteUrl);
-      var host     = parsed.hostname;                       // e.g. kfguae.sharepoint.com
-      var sitePath = parsed.pathname.replace(/\/+$/, '');   // e.g. /sites/ExecutiveDashboard
+      var host     = parsed.hostname;
+      var sitePath = parsed.pathname.replace(/\/+$/, '');
 
       // 1. Resolve site ID
-      var siteUrl  = GRAPH_BASE + '/sites/' + host + ':' + sitePath;
-      var siteJson = await graphFetch(siteUrl);
+      var siteJson = await graphFetch(GRAPH_BASE + '/sites/' + host + ':' + sitePath);
       if (!siteJson || !siteJson.id) {
         _warn('Could not resolve SharePoint site ID.');
         return null;
@@ -155,20 +156,22 @@
       _siteId = siteJson.id;
       _log('Resolved site ID: ' + _siteId);
 
-      // 2. Resolve drives — pick the default "Documents" library
-      var drivesUrl  = GRAPH_BASE + '/sites/' + _siteId + '/drives';
-      var drivesJson = await graphFetch(drivesUrl);
+      // 2. Enumerate ALL drives and build a name→id map
+      var drivesJson = await graphFetch(GRAPH_BASE + '/sites/' + _siteId + '/drives');
       if (!drivesJson || !drivesJson.value || drivesJson.value.length === 0) {
         _warn('No drives found for site.');
         return null;
       }
 
-      // Prefer the drive named "Documents"; fall back to the first drive
+      _driveMap = {};
+      drivesJson.value.forEach(function (d) { _driveMap[d.name] = d.id; });
+      _log('Site libraries: ' + Object.keys(_driveMap).join(', '));
+
+      // Default drive = Documents (fallback to first)
       var docDrive = drivesJson.value.find(function (d) {
         return d.name === 'Documents' || d.name === 'Shared Documents';
       });
       _driveId = (docDrive || drivesJson.value[0]).id;
-      _log('Resolved drive ID: ' + _driveId);
 
       return { siteId: _siteId, driveId: _driveId };
     } catch (err) {
@@ -336,15 +339,24 @@
     }
 
     try {
-      var fileId = await resolveFileId(dept.file);
-      if (!fileId) return null;
+      var ids = await resolveSiteAndDrive();
+      if (!ids) return null;
 
-      // URL-encode the sheet name to handle spaces and special characters
+      // Use the library-specific drive for this department
+      var driveId = (dept.library && _driveMap[dept.library]) ? _driveMap[dept.library] : _driveId;
+      if (!driveId) {
+        _warn('Drive not found for library "' + dept.library + '"');
+        return null;
+      }
+
+      // Access file directly by path within its library root
+      var encodedFile  = encodeURIComponent(dept.file);
       var encodedSheet = encodeURIComponent(sheetName);
-      var rangeUrl = GRAPH_BASE + '/drives/' + _driveId +
-                     '/items/' + fileId +
-                     '/workbook/worksheets/' + encodedSheet + '/usedRange';
+      var rangeUrl = GRAPH_BASE + '/drives/' + driveId +
+                     '/root:/' + encodedFile +
+                     ':/workbook/worksheets/' + encodedSheet + '/usedRange';
 
+      _log('Fetching ' + deptKey + '/' + sheetKey + ' from library "' + dept.library + '"');
       var rangeJson = await graphFetch(rangeUrl);
       if (!rangeJson || !rangeJson.values) {
         _warn('No data returned for sheet "' + sheetName + '" in ' + dept.file);
@@ -352,11 +364,8 @@
       }
 
       var parsed = parseRange(rangeJson.values);
-
-      // Cache the result
       _dataCache[cacheKey] = { data: parsed, timestamp: Date.now() };
       _log('Fetched ' + parsed.length + ' rows from ' + deptKey + '/' + sheetKey);
-
       return parsed;
     } catch (err) {
       _warn('fetchSheet error (' + deptKey + '/' + sheetKey + '): ' + (err.message || err));
