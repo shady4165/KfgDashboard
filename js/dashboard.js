@@ -125,11 +125,6 @@
         { id: 'OP-004', name: 'Emergency Procedures Refresh', cat: 'Health & Safety', owner: 'H&S Manager', pct: 95, budget: 3500, priority: 'Critical', rag: 'Green' },
         { id: 'OP-005', name: 'Brand Refresh Collateral', cat: 'Marketing', owner: 'Marketing Lead', pct: 5, budget: 12000, priority: 'Low', rag: 'Red' },
       ],
-      actions: [
-        { projectId: 'OP-002', project: 'Operations Manual Update', action: 'Circulate draft manual to all Area Directors for review', owner: 'Ops Director', raisedDate: '01/03/2026', dueDate: '15/03/2026', status: 'Completed', priority: 'High' },
-        { projectId: 'OP-004', project: 'Emergency Procedures Refresh', action: 'Schedule fire drill across all 35 sites', owner: 'H&S Manager', raisedDate: '10/03/2026', dueDate: '31/03/2026', status: 'In Progress', priority: 'Critical' },
-        { projectId: 'OP-001', project: 'Staff Wellbeing Programme', action: 'Launch wellbeing survey — Q1', owner: 'HR Manager', raisedDate: '01/03/2026', dueDate: '20/03/2026', status: 'Open', priority: 'Medium' },
-      ],
       byCat: { 'People & HR': 1, 'Process Improvement': 1, Research: 1, 'Health & Safety': 1, Marketing: 1 },
       bySt: { Green: 1, Amber: 1, Red: 3 },
     },
@@ -149,9 +144,10 @@
   const PROC_ANALYTICS_STATE = {
     sites: [], cats: [], from: '', to: '' }
 ;
-  const OTHER_ACTIONS_STATE = {
-    projects: [], from: '', to: ''
-  };
+  const CAPEX_CATEGORY_STATE = { sites: [], cats: [] };
+  const PROC_SUPPLIER_STATE = { suppliers: [], cats: [], from: '', to: '' };
+  const MA_MILESTONE_STATE = { projects: [], from: '', to: '' };
+  const OTHER_ACTION_STATE = { projects: [], from: '', to: '' };
 
   // --------------------------------------------------------------------------
   //  Format Helpers
@@ -513,6 +509,20 @@
     return true;
   }
 
+  function inDateRange(dateObj, from, to) {
+    if (!dateObj) return false;
+    var d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()).getTime();
+    if (from) {
+      var f = parseDashboardDate(from);
+      if (f && d < new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime()) return false;
+    }
+    if (to) {
+      var t = parseDashboardDate(to);
+      if (t && d > new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) return false;
+    }
+    return true;
+  }
+
   function maintenancePalette() {
     return ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#0EA5C9', '#1D4ED8', '#64748B'];
   }
@@ -776,6 +786,195 @@
     renderMaintenancePOAnalytics(m);
   }
 
+  function bindCapexCategoryControls(rerender) {
+    var sitesEl = document.getElementById('capex-cat-sites');
+    var catsEl = document.getElementById('capex-cat-cats');
+    var resetEl = document.getElementById('capex-cat-reset');
+    if (sitesEl) sitesEl.onchange = rerender;
+    if (catsEl) catsEl.onchange = rerender;
+    if (resetEl) resetEl.onclick = function () {
+      CAPEX_CATEGORY_STATE.sites = [];
+      CAPEX_CATEGORY_STATE.cats = [];
+      rerender();
+    };
+  }
+
+  function renderCapexCategoryBudget(c) {
+    var projectRows = c.projects || [];
+    var categoryRows = c.categories || [];
+    var allSites = siteFilterOptions(projectRows.map(function (r) { return r.nursery; }));
+    var allCats = safeUnique(categoryRows.map(function (r) { return r.category; }).concat(projectRows.map(function (r) { return r.category; })));
+    CAPEX_CATEGORY_STATE.sites = ensureStateSelection(CAPEX_CATEGORY_STATE.sites, allSites);
+    CAPEX_CATEGORY_STATE.cats = ensureStateSelection(CAPEX_CATEGORY_STATE.cats, allCats);
+    populateMultiSelect('capex-cat-sites', allSites, CAPEX_CATEGORY_STATE.sites);
+    populateMultiSelect('capex-cat-cats', allCats, CAPEX_CATEGORY_STATE.cats);
+
+    var selectedSites = new Set(CAPEX_CATEGORY_STATE.sites || []);
+    var selectedCats = new Set(CAPEX_CATEGORY_STATE.cats || []);
+    var rows = [];
+    var usingNurseryFilter = selectedSites.size && selectedSites.size !== allSites.length;
+    if (usingNurseryFilter) {
+      var grouped = {};
+      projectRows.filter(function (r) {
+        return matchesSiteSelection(r.nursery, selectedSites) && (!selectedCats.size || selectedCats.has(r.category));
+      }).forEach(function (r) {
+        var cat = r.category || 'Uncategorised';
+        if (!grouped[cat]) grouped[cat] = { category: cat, budget: 0, spent: 0, committed: 0, remaining: 0, pct: 0, rag: '' };
+        grouped[cat].budget += Number(r.budget) || 0;
+        grouped[cat].spent += Number(r.spent) || 0;
+        grouped[cat].committed += Number(r.committed) || 0;
+        grouped[cat].remaining += Number(r.remaining) || 0;
+      });
+      rows = Object.keys(grouped).sort().map(function (k) {
+        var row = grouped[k];
+        row.pct = row.budget ? ((row.spent + row.committed) / row.budget * 100) : 0;
+        row.rag = row.remaining < 0 ? 'Red' : row.pct > 80 ? 'Amber' : 'Green';
+        return row;
+      });
+    } else {
+      rows = categoryRows.filter(function (r) { return !selectedCats.size || selectedCats.has(r.category); });
+    }
+
+    renderAnalyticsSummary('capex-cat-summary', [
+      { label: 'Categories', value: rows.length },
+      { label: 'Budget', value: faed(rows.reduce(function (s, r) { return s + (Number(r.budget) || 0); }, 0)) },
+      { label: 'Spent', value: faed(rows.reduce(function (s, r) { return s + (Number(r.spent) || 0); }, 0)) },
+      { label: 'Committed', value: faed(rows.reduce(function (s, r) { return s + (Number(r.committed) || 0); }, 0)) }
+    ]);
+
+    var tbl = document.getElementById('t-capex-categories');
+    if (tbl) {
+      tbl.innerHTML = rows.map(function (r) {
+        return '<tr><td>' + (r.category || '') + '</td><td>' + faed(r.budget) + '</td><td>' + faed(r.spent) + '</td><td>' + faed(r.committed) + '</td><td>' + faed(r.remaining) + '</td><td>' + fpct(r.pct) + '</td><td>' + pill(r.rag) + '</td></tr>';
+      }).join('');
+    }
+
+    bindCapexCategoryControls(function () {
+      CAPEX_CATEGORY_STATE.sites = readMultiSelect('capex-cat-sites');
+      CAPEX_CATEGORY_STATE.cats = readMultiSelect('capex-cat-cats');
+      renderCapexCategoryBudget(c);
+    });
+  }
+
+  function bindProcurementSupplierControls(rerender) {
+    ['proc-supplier-names','proc-supplier-cats','proc-supplier-from','proc-supplier-to'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.onchange = rerender;
+    });
+    var resetEl = document.getElementById('proc-supplier-reset');
+    if (resetEl) resetEl.onclick = function () {
+      PROC_SUPPLIER_STATE.suppliers = [];
+      PROC_SUPPLIER_STATE.cats = [];
+      PROC_SUPPLIER_STATE.from = '';
+      PROC_SUPPLIER_STATE.to = '';
+      rerender();
+    };
+  }
+
+  function renderProcurementSuppliers(pr) {
+    var rows = (pr.suppliers || []).slice();
+    var allSuppliers = safeUnique(rows.map(function (r) { return r.supplier; }));
+    var allCats = safeUnique(rows.map(function (r) { return r.category; }));
+    PROC_SUPPLIER_STATE.suppliers = ensureStateSelection(PROC_SUPPLIER_STATE.suppliers, allSuppliers);
+    PROC_SUPPLIER_STATE.cats = ensureStateSelection(PROC_SUPPLIER_STATE.cats, allCats);
+    populateMultiSelect('proc-supplier-names', allSuppliers, PROC_SUPPLIER_STATE.suppliers);
+    populateMultiSelect('proc-supplier-cats', allCats, PROC_SUPPLIER_STATE.cats);
+    var fromEl = document.getElementById('proc-supplier-from');
+    var toEl = document.getElementById('proc-supplier-to');
+    if (fromEl) fromEl.value = PROC_SUPPLIER_STATE.from || '';
+    if (toEl) toEl.value = PROC_SUPPLIER_STATE.to || '';
+    var selectedSuppliers = new Set(PROC_SUPPLIER_STATE.suppliers || []);
+    var selectedCats = new Set(PROC_SUPPLIER_STATE.cats || []);
+    var filtered = rows.filter(function (r) {
+      return (!selectedSuppliers.size || selectedSuppliers.has(r.supplier)) && (!selectedCats.size || selectedCats.has(r.category)) && (!r.contractExpObj || inDateRange(r.contractExpObj, PROC_SUPPLIER_STATE.from, PROC_SUPPLIER_STATE.to));
+    });
+    renderAnalyticsSummary('proc-supplier-summary', [
+      { label: 'Suppliers', value: filtered.length },
+      { label: 'Annual Spend', value: faed(filtered.reduce(function (s, r) { return s + (Number(r.annualSpend) || 0); }, 0)) },
+      { label: 'Active', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'active'; }).length },
+      { label: 'Insurance Valid', value: filtered.filter(function (r) { return String(r.insuranceValid || '').toLowerCase().includes('yes') || String(r.insuranceValid || '').toLowerCase().includes('valid'); }).length }
+    ]);
+    var tbl = document.getElementById('t-proc-suppliers');
+    if (tbl) {
+      tbl.innerHTML = filtered.map(function (r) {
+        return '<tr><td>' + (r.supplier || '') + '</td><td>' + (r.category || '') + '</td><td>' + (r.contractExp || '') + '</td><td>' + (r.contact || '') + '</td><td>' + faed(r.annualSpend) + '</td><td>' + pill(r.status) + '</td><td>' + (r.insuranceValid || '') + '</td><td>' + (r.notes || '') + '</td></tr>';
+      }).join('');
+    }
+    bindProcurementSupplierControls(function () {
+      PROC_SUPPLIER_STATE.suppliers = readMultiSelect('proc-supplier-names');
+      PROC_SUPPLIER_STATE.cats = readMultiSelect('proc-supplier-cats');
+      PROC_SUPPLIER_STATE.from = (document.getElementById('proc-supplier-from') || {}).value || '';
+      PROC_SUPPLIER_STATE.to = (document.getElementById('proc-supplier-to') || {}).value || '';
+      renderProcurementSuppliers(pr);
+    });
+  }
+
+  function bindMAMilestoneControls(rerender) {
+    ['ma-projects','ma-from','ma-to'].forEach(function (id) { var el = document.getElementById(id); if (el) el.onchange = rerender; });
+    var resetEl = document.getElementById('ma-reset');
+    if (resetEl) resetEl.onclick = function () { MA_MILESTONE_STATE.projects=[]; MA_MILESTONE_STATE.from=''; MA_MILESTONE_STATE.to=''; rerender(); };
+  }
+
+  function renderMAMilestones(ma) {
+    var rows = (ma.milestones || []).map(function (r) { return Object.assign({}, r, { _projectLabel: (r.dealId || '') + (r.target ? ' — ' + r.target : '') }); });
+    var allProjects = safeUnique(rows.map(function (r) { return r._projectLabel; }));
+    MA_MILESTONE_STATE.projects = ensureStateSelection(MA_MILESTONE_STATE.projects, allProjects);
+    populateMultiSelect('ma-projects', allProjects, MA_MILESTONE_STATE.projects);
+    var fromEl = document.getElementById('ma-from'); var toEl = document.getElementById('ma-to');
+    if (fromEl) fromEl.value = MA_MILESTONE_STATE.from || ''; if (toEl) toEl.value = MA_MILESTONE_STATE.to || '';
+    var selectedProjects = new Set(MA_MILESTONE_STATE.projects || []);
+    var filtered = rows.filter(function (r) {
+      return (!selectedProjects.size || selectedProjects.has(r._projectLabel)) && (!r.dueDateObj || inDateRange(r.dueDateObj, MA_MILESTONE_STATE.from, MA_MILESTONE_STATE.to));
+    });
+    renderAnalyticsSummary('ma-summary', [
+      { label: 'Milestones', value: filtered.length },
+      { label: 'Completed', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'completed'; }).length },
+      { label: 'Open', value: filtered.filter(function (r) { return ['open','in progress','pending'].indexOf(String(r.status || '').toLowerCase()) !== -1; }).length },
+      { label: 'Critical', value: filtered.filter(function (r) { return String(r.priority || '').toLowerCase() === 'critical'; }).length }
+    ]);
+    var tbl = document.getElementById('t-ma-milestones');
+    if (tbl) tbl.innerHTML = filtered.map(function (r) { return '<tr><td>' + (r.dealId||'') + '</td><td>' + (r.target||'') + '</td><td>' + (r.milestone||'') + '</td><td>' + (r.dueDate||'') + '</td><td>' + (r.owner||'') + '</td><td>' + pill(r.status) + '</td><td>' + pill(r.priority) + '</td><td>' + (r.notes||'') + '</td></tr>'; }).join('');
+    bindMAMilestoneControls(function () {
+      MA_MILESTONE_STATE.projects = readMultiSelect('ma-projects');
+      MA_MILESTONE_STATE.from = (document.getElementById('ma-from') || {}).value || '';
+      MA_MILESTONE_STATE.to = (document.getElementById('ma-to') || {}).value || '';
+      renderMAMilestones(ma);
+    });
+  }
+
+  function bindOtherActionControls(rerender) {
+    ['other-projects','other-from','other-to'].forEach(function (id) { var el = document.getElementById(id); if (el) el.onchange = rerender; });
+    var resetEl = document.getElementById('other-reset');
+    if (resetEl) resetEl.onclick = function () { OTHER_ACTION_STATE.projects=[]; OTHER_ACTION_STATE.from=''; OTHER_ACTION_STATE.to=''; rerender(); };
+  }
+
+  function renderOtherActions(o) {
+    var rows = (o.actions || []).map(function (r) { return Object.assign({}, r, { _projectLabel: (r.projectId || '') + (r.project ? ' — ' + r.project : '') }); });
+    var allProjects = safeUnique(rows.map(function (r) { return r._projectLabel; }));
+    OTHER_ACTION_STATE.projects = ensureStateSelection(OTHER_ACTION_STATE.projects, allProjects);
+    populateMultiSelect('other-projects', allProjects, OTHER_ACTION_STATE.projects);
+    var fromEl = document.getElementById('other-from'); var toEl = document.getElementById('other-to');
+    if (fromEl) fromEl.value = OTHER_ACTION_STATE.from || ''; if (toEl) toEl.value = OTHER_ACTION_STATE.to || '';
+    var selectedProjects = new Set(OTHER_ACTION_STATE.projects || []);
+    var filtered = rows.filter(function (r) {
+      return (!selectedProjects.size || selectedProjects.has(r._projectLabel)) && (!r.dueDateObj || inDateRange(r.dueDateObj, OTHER_ACTION_STATE.from, OTHER_ACTION_STATE.to));
+    });
+    renderAnalyticsSummary('other-summary', [
+      { label: 'Actions', value: filtered.length },
+      { label: 'Open', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'open'; }).length },
+      { label: 'In Progress', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'in progress'; }).length },
+      { label: 'Completed', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'completed'; }).length }
+    ]);
+    var tbl = document.getElementById('t-other-actions');
+    if (tbl) tbl.innerHTML = filtered.map(function (r) { return '<tr><td>' + (r.projectId||'') + '</td><td>' + (r.project||'') + '</td><td>' + (r.action||'') + '</td><td>' + (r.owner||'') + '</td><td>' + (r.raisedDate||'') + '</td><td>' + (r.dueDate||'') + '</td><td>' + pill(r.status) + '</td><td>' + pill(r.priority) + '</td><td>' + (r.notes||'') + '</td></tr>'; }).join('');
+    bindOtherActionControls(function () {
+      OTHER_ACTION_STATE.projects = readMultiSelect('other-projects');
+      OTHER_ACTION_STATE.from = (document.getElementById('other-from') || {}).value || '';
+      OTHER_ACTION_STATE.to = (document.getElementById('other-to') || {}).value || '';
+      renderOtherActions(o);
+    });
+  }
+
   // --------------------------------------------------------------------------
   //  Build: Capex
   // --------------------------------------------------------------------------
@@ -841,6 +1040,8 @@
       });
       tbl.innerHTML = html;
     }
+
+    renderCapexCategoryBudget(c);
   }
 
   // --------------------------------------------------------------------------
@@ -1104,6 +1305,7 @@
     }
 
     renderProcurementAnalytics(pr);
+    renderProcurementSuppliers(pr);
   }
 
   // --------------------------------------------------------------------------
@@ -1213,6 +1415,8 @@
       });
       tbl.innerHTML = html;
     }
+
+    renderMAMilestones(ma);
   }
 
   // --------------------------------------------------------------------------
@@ -1282,74 +1486,6 @@
         datasets: [{ label: 'Capex (AED)', data: withCapex.map(s => s.capex), backgroundColor: capCfg ? capCfg.colors[0] : '#2563EB', borderRadius: 6 }],
       },
       options: noGridOpts(),
-    });
-  }
-
-  function bindOtherActionsControls(rerender) {
-    var projectsEl = document.getElementById('other-actions-projects');
-    var fromEl = document.getElementById('other-actions-from');
-    var toEl = document.getElementById('other-actions-to');
-    var resetEl = document.getElementById('other-actions-reset');
-    if (projectsEl) projectsEl.onchange = rerender;
-    if (fromEl) fromEl.onchange = rerender;
-    if (toEl) toEl.onchange = rerender;
-    if (resetEl) {
-      resetEl.onclick = function () {
-        OTHER_ACTIONS_STATE.projects = [];
-        OTHER_ACTIONS_STATE.from = '';
-        OTHER_ACTIONS_STATE.to = '';
-        rerender();
-      };
-    }
-  }
-
-  function renderOtherActions(o) {
-    var rows = (o.actions || []).map(function (r) {
-      var due = parseDashboardDate(r.dueDate || r.targetDate || r.date);
-      return Object.assign({}, r, { _month: monthKey(due), _project: String(r.project || r.projectId || '').trim() });
-    }).filter(function (r) { return r._project; });
-
-    var allProjects = safeUnique(rows.map(function (r) { return r._project; }));
-    OTHER_ACTIONS_STATE.projects = ensureStateSelection(OTHER_ACTIONS_STATE.projects, allProjects);
-    populateMultiSelect('other-actions-projects', allProjects, OTHER_ACTIONS_STATE.projects);
-
-    var fromEl = document.getElementById('other-actions-from');
-    var toEl = document.getElementById('other-actions-to');
-    if (fromEl) fromEl.value = OTHER_ACTIONS_STATE.from || '';
-    if (toEl) toEl.value = OTHER_ACTIONS_STATE.to || '';
-
-    var selectedProjects = new Set(OTHER_ACTIONS_STATE.projects);
-    var filtered = rows.filter(function (r) {
-      return (!selectedProjects.size || selectedProjects.has(r._project)) && (!r._month || inMonthRange(r._month, OTHER_ACTIONS_STATE.from, OTHER_ACTIONS_STATE.to));
-    });
-
-    renderAnalyticsSummary('other-actions-summary', [
-      { label: 'Actions', value: filtered.length },
-      { label: 'Open', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'open'; }).length },
-      { label: 'In Progress', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase().includes('progress'); }).length },
-      { label: 'Completed', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'completed'; }).length },
-    ]);
-
-    var tbl = document.getElementById('t-op-actions');
-    if (tbl) {
-      tbl.innerHTML = filtered.length ? filtered.map(function (r) {
-        return '<tr>' +
-          '<td>' + (r.project || r.projectId || '-') + '</td>' +
-          '<td>' + (r.action || '-') + '</td>' +
-          '<td>' + (r.owner || '-') + '</td>' +
-          '<td>' + (r.raisedDate || '-') + '</td>' +
-          '<td>' + (r.dueDate || '-') + '</td>' +
-          '<td>' + pill(r.status || '-') + '</td>' +
-          '<td>' + pill(r.priority || '-') + '</td>' +
-        '</tr>';
-      }).join('') : '<tr><td colspan="7" class="muted">No actions matched the current filter selection.</td></tr>';
-    }
-
-    bindOtherActionsControls(function () {
-      OTHER_ACTIONS_STATE.projects = readMultiSelect('other-actions-projects');
-      OTHER_ACTIONS_STATE.from = (document.getElementById('other-actions-from') || {}).value || '';
-      OTHER_ACTIONS_STATE.to = (document.getElementById('other-actions-to') || {}).value || '';
-      renderOtherActions(o);
     });
   }
 
