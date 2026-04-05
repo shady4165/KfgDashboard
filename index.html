@@ -22,7 +22,7 @@
 <script src="js/msal-browser.min.js"></script>
 
 <!-- Stylesheet -->
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css?v=2">
 </head>
 <body>
 
@@ -186,6 +186,8 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-maintenance','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-maintenance','jobs')" type="button">Jobs Register</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-maintenance','jobs-analytics')" type="button">Jobs Analytics</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-maintenance','po-analytics')" type="button">Maintenance PO Cost</button>
         </div>
         <div class="tab-pane active" id="pg-maintenance-overview">
           <div class="grid-2">
@@ -211,6 +213,64 @@
                 <tbody id="t-maint-jobs"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-maintenance-jobs-analytics">
+          <div class="card">
+            <h3 class="card-title">Interactive Jobs Analytics</h3>
+            <div class="card-sub">Filter jobs register by nursery, category and period. Use Ctrl or Command for multiple selection.</div>
+            <div class="analytics-filters">
+              <div class="analytics-field">
+                <label for="maint-jobs-sites">Nursery</label>
+                <select id="maint-jobs-sites" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="maint-jobs-cats">Category</label>
+                <select id="maint-jobs-cats" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="maint-jobs-from">From Month</label>
+                <input id="maint-jobs-from" type="month">
+              </div>
+              <div class="analytics-field">
+                <label for="maint-jobs-to">To Month</label>
+                <input id="maint-jobs-to" type="month">
+              </div>
+              <div class="analytics-actions">
+                <button class="sidebar-btn" id="maint-jobs-reset" type="button">Reset Filters</button>
+              </div>
+            </div>
+            <div class="analytics-summary" id="maint-jobs-summary"></div>
+            <div class="chart-wrap" style="height:320px"><canvas id="c-maint-jobs-analytics" aria-label="Maintenance jobs analytics chart"></canvas></div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-maintenance-po-analytics">
+          <div class="card">
+            <h3 class="card-title">Interactive Maintenance PO Cost</h3>
+            <div class="card-sub">Filter maintenance expense by nursery, category and period. Uses the MaintenancePOcost sheet in SharePoint.</div>
+            <div class="analytics-filters">
+              <div class="analytics-field">
+                <label for="maint-po-sites">Nursery</label>
+                <select id="maint-po-sites" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="maint-po-cats">Category</label>
+                <select id="maint-po-cats" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="maint-po-from">From Month</label>
+                <input id="maint-po-from" type="month">
+              </div>
+              <div class="analytics-field">
+                <label for="maint-po-to">To Month</label>
+                <input id="maint-po-to" type="month">
+              </div>
+              <div class="analytics-actions">
+                <button class="sidebar-btn" id="maint-po-reset" type="button">Reset Filters</button>
+              </div>
+            </div>
+            <div class="analytics-summary" id="maint-po-summary"></div>
+            <div class="chart-wrap" style="height:320px"><canvas id="c-maint-po-analytics" aria-label="Maintenance PO cost analytics chart"></canvas></div>
           </div>
         </div>
       </section>
@@ -499,8 +559,8 @@
 <script src="js/config.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/graph.js?v=5"></script>
-<script src="js/transform.js?v=2"></script>
-<script src="js/dashboard.js?v=2"></script>
+<script src="js/transform.js?v=3"></script>
+<script src="js/dashboard.js?v=3"></script>
 <script src="js/admin.js?v=2"></script>
 <script src="js/app.js?v=2"></script>
 
