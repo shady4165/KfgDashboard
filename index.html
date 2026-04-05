@@ -288,6 +288,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-capex','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-capex','detail')" type="button">Budget Detail</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-capex','categories')" type="button">Category Budget</button>
         </div>
         <div class="tab-pane active" id="pg-capex-overview">
           <div class="grid-2">
@@ -311,6 +312,32 @@
               <table role="table" aria-label="Nursery budget details">
                 <thead><tr><th scope="col">Nursery</th><th scope="col">EBITDA</th><th scope="col">Capex Budget</th><th scope="col">% of EBITDA</th><th scope="col">Utilised</th><th scope="col">Balance</th><th scope="col">Balance %</th><th scope="col">Request for Approval</th><th scope="col">Balance After</th></tr></thead>
                 <tbody id="t-capex"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-capex-categories">
+          <div class="card">
+            <h3 class="card-title">Category Budget</h3>
+            <div class="card-sub">Filter by nursery or category. Nursery filtering uses the capex projects register to derive category totals per selected site.</div>
+            <div class="analytics-filters">
+              <div class="analytics-field">
+                <label for="capex-cat-sites">Nursery</label>
+                <select id="capex-cat-sites" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="capex-cat-cats">Category</label>
+                <select id="capex-cat-cats" multiple size="6"></select>
+              </div>
+              <div class="analytics-actions">
+                <button class="sidebar-btn" id="capex-cat-reset" type="button">Reset Filters</button>
+              </div>
+            </div>
+            <div class="analytics-summary" id="capex-cat-summary"></div>
+            <div class="tbl-wrap">
+              <table role="table" aria-label="Capex category budget">
+                <thead><tr><th scope="col">Category</th><th scope="col">Budget (AED)</th><th scope="col">Spent YTD (AED)</th><th scope="col">Committed (AED)</th><th scope="col">Remaining (AED)</th><th scope="col">% Utilised</th><th scope="col">RAG</th></tr></thead>
+                <tbody id="t-capex-categories"></tbody>
               </table>
             </div>
           </div>
@@ -371,6 +398,7 @@
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-procurement','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','orders')" type="button">PO Register</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','analytics')" type="button">PO Analytics</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','suppliers')" type="button">Supplier Register</button>
         </div>
         <div class="tab-pane active" id="pg-procurement-overview">
           <div class="grid-2">
@@ -425,6 +453,40 @@
             <div class="analytics-summary" id="proc-summary"></div>
             <div id="proc-category-breakdown"></div>
             <div class="chart-wrap" style="height:340px"><canvas id="c-proc-analytics" aria-label="Procurement analytics chart"></canvas></div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-procurement-suppliers">
+          <div class="card">
+            <h3 class="card-title">Supplier Register</h3>
+            <div class="card-sub">Filter supplier records by supplier, category and contract expiry date.</div>
+            <div class="analytics-filters">
+              <div class="analytics-field">
+                <label for="proc-supplier-names">Supplier</label>
+                <select id="proc-supplier-names" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="proc-supplier-cats">Category</label>
+                <select id="proc-supplier-cats" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="proc-supplier-from">Expiry From</label>
+                <input id="proc-supplier-from" type="date" />
+              </div>
+              <div class="analytics-field">
+                <label for="proc-supplier-to">Expiry To</label>
+                <input id="proc-supplier-to" type="date" />
+              </div>
+              <div class="analytics-actions">
+                <button class="sidebar-btn" id="proc-supplier-reset" type="button">Reset Filters</button>
+              </div>
+            </div>
+            <div class="analytics-summary" id="proc-supplier-summary"></div>
+            <div class="tbl-wrap">
+              <table role="table" aria-label="Supplier register">
+                <thead><tr><th scope="col">Supplier</th><th scope="col">Category</th><th scope="col">Contract Exp.</th><th scope="col">Contact</th><th scope="col">Annual Spend</th><th scope="col">Status</th><th scope="col">Insurance Valid</th><th scope="col">Notes</th></tr></thead>
+                <tbody id="t-proc-suppliers"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -482,6 +544,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-ma','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-ma','pipeline')" type="button">Deal Pipeline</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-ma','milestones')" type="button">Milestones</button>
         </div>
         <div class="tab-pane active" id="pg-ma-overview">
           <div class="grid-2">
@@ -504,6 +567,36 @@
               <table role="table" aria-label="Deal register">
                 <thead><tr><th scope="col">Deal ID</th><th scope="col">Target</th><th scope="col">Type</th><th scope="col">Value (AED)</th><th scope="col">Stage</th><th scope="col">Lead</th><th scope="col">Target Close</th><th scope="col">Probability</th></tr></thead>
                 <tbody id="t-ma"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-ma-milestones">
+          <div class="card">
+            <h3 class="card-title">Milestones</h3>
+            <div class="card-sub">Filter milestones by project and due date.</div>
+            <div class="analytics-filters">
+              <div class="analytics-field">
+                <label for="ma-projects">Project</label>
+                <select id="ma-projects" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="ma-from">Due From</label>
+                <input id="ma-from" type="date" />
+              </div>
+              <div class="analytics-field">
+                <label for="ma-to">Due To</label>
+                <input id="ma-to" type="date" />
+              </div>
+              <div class="analytics-actions">
+                <button class="sidebar-btn" id="ma-reset" type="button">Reset Filters</button>
+              </div>
+            </div>
+            <div class="analytics-summary" id="ma-summary"></div>
+            <div class="tbl-wrap">
+              <table role="table" aria-label="M&A milestones">
+                <thead><tr><th scope="col">Deal ID</th><th scope="col">Target</th><th scope="col">Milestone</th><th scope="col">Due Date</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Notes</th></tr></thead>
+                <tbody id="t-ma-milestones"></tbody>
               </table>
             </div>
           </div>
@@ -554,6 +647,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-other','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-other','register')" type="button">Projects Register</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-other','actions')" type="button">Actions Log</button>
         </div>
         <div class="tab-pane active" id="pg-other-overview">
           <div class="grid-2">
@@ -576,6 +670,36 @@
               <table role="table" aria-label="Other projects register">
                 <thead><tr><th scope="col">ID</th><th scope="col">Project</th><th scope="col">Category</th><th scope="col">Owner</th><th scope="col">% Done</th><th scope="col">Budget</th><th scope="col">Priority</th><th scope="col">RAG</th></tr></thead>
                 <tbody id="t-op"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-other-actions">
+          <div class="card">
+            <h3 class="card-title">Actions Log</h3>
+            <div class="card-sub">Filter actions by project and due date.</div>
+            <div class="analytics-filters">
+              <div class="analytics-field">
+                <label for="other-projects">Project</label>
+                <select id="other-projects" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="other-from">Due From</label>
+                <input id="other-from" type="date" />
+              </div>
+              <div class="analytics-field">
+                <label for="other-to">Due To</label>
+                <input id="other-to" type="date" />
+              </div>
+              <div class="analytics-actions">
+                <button class="sidebar-btn" id="other-reset" type="button">Reset Filters</button>
+              </div>
+            </div>
+            <div class="analytics-summary" id="other-summary"></div>
+            <div class="tbl-wrap">
+              <table role="table" aria-label="Other project actions log">
+                <thead><tr><th scope="col">Project ID</th><th scope="col">Project</th><th scope="col">Action / Decision</th><th scope="col">Owner</th><th scope="col">Raised Date</th><th scope="col">Due Date</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Notes</th></tr></thead>
+                <tbody id="t-other-actions"></tbody>
               </table>
             </div>
           </div>

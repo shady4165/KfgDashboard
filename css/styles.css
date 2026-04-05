@@ -2077,7 +2077,8 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   margin-bottom: 6px;
 }
 .analytics-field select,
-.analytics-field input[type="month"] {
+.analytics-field input[type="month"],
+.analytics-field input[type="date"] {
   width: 100%;
   border: 1px solid var(--border2);
   border-radius: 10px;
@@ -2089,7 +2090,8 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   min-height: 150px;
 }
 .analytics-field select:focus,
-.analytics-field input[type="month"]:focus {
+.analytics-field input[type="month"]:focus,
+.analytics-field input[type="date"]:focus {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
