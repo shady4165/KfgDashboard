@@ -2059,3 +2059,88 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   .sidebar-footer { display: none; }
   .main-area { margin-left: 0; margin-top: 56px; }
 }
+
+
+/* ----- Maintenance analytics filters ----- */
+.analytics-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+  margin: 16px 0 14px;
+}
+.analytics-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.analytics-field select,
+.analytics-field input[type="month"] {
+  width: 100%;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  padding: 10px 12px;
+}
+.analytics-field select {
+  min-height: 150px;
+}
+.analytics-field select:focus,
+.analytics-field input[type="month"]:focus {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.analytics-actions {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+.analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.analytics-stat {
+  background: rgba(37,99,235,0.05);
+  border: 1px solid rgba(37,99,235,0.10);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.analytics-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.analytics-stat-value {
+  font-family: var(--display);
+  font-size: 22px;
+  line-height: 1.1;
+  color: var(--navy);
+}
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  border: 1px dashed var(--border2);
+  border-radius: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 20px;
+  text-align: center;
+}
+@media (max-width: 1200px) {
+  .analytics-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .analytics-filters,
+  .analytics-summary { grid-template-columns: 1fr; }
+}
