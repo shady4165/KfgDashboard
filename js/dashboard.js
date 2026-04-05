@@ -445,6 +445,23 @@
     return filtered.length ? filtered : allOptions.slice();
   }
 
+  function siteFilterOptions(list) {
+    var exact = safeUnique(list);
+    var groups = safeUnique(exact.map(function (v) {
+      var s = String(v || '').trim();
+      return s.indexOf('-') !== -1 ? s.split('-')[0] : s;
+    })).filter(function (v) { return v && exact.indexOf(v) === -1; });
+    return groups.concat(exact);
+  }
+
+  function matchesSiteSelection(site, selectedSites) {
+    if (!selectedSites || !selectedSites.size) return true;
+    var s = String(site || '').trim();
+    if (selectedSites.has(s)) return true;
+    var group = s.indexOf('-') !== -1 ? s.split('-')[0] : s;
+    return selectedSites.has(group);
+  }
+
   function populateMultiSelect(id, options, selectedValues) {
     var el = document.getElementById(id);
     if (!el) return;
