@@ -77,25 +77,51 @@
     return String(v);
   }
 
+  function parseDateValue(v) {
+    if (!v) return null;
+    if (v instanceof Date && !isNaN(v.getTime())) return v;
+    if (typeof v === 'number' && v > 1000) {
+      return new Date((v - 25569) * 86400 * 1000);
+    }
+    var s = String(v).trim();
+    var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (m) {
+      var y = parseInt(m[3], 10);
+      if (y < 100) y += 2000;
+      return new Date(y, parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+    }
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   // ---------------------------------------------------------------------------
   // Maintenance
   // ---------------------------------------------------------------------------
 
   function transformMaintenance(raw) {
     if (!raw) return null;
-    var kpiRows  = raw.kpi  || [];
-    var dataRows = raw.data || [];
-    var siteRows = raw.sites || [];
+    var kpiRows   = raw.kpi     || [];
+    var dataRows  = raw.data    || [];
+    var siteRows  = raw.sites   || [];
+    var poCostRows = raw.poCosts || [];
 
     var jobs = dataRows.map(function (r, idx) {
+      var raisedRaw = col(r, 'Raised Date', 'Date Raised', 'Created Date', 'Date');
+      var completedRaw = col(r, 'Completed Date', 'Closed Date', 'Resolved Date');
       return {
-        id:       col(r, 'Job ID', 'ID', 'Job No', 'Job Number', 'Ref') || ('MNT-' + String(idx + 1).padStart(3, '0')),
-        site:     col(r, 'Site', 'Location', 'Branch', 'Nursery') || '',
-        desc:     col(r, 'Description', 'Job Description', 'Desc', 'Details', 'Work') || '',
-        cat:      col(r, 'Category', 'Cat', 'Type', 'Job Type', 'Work Type') || '',
-        priority: col(r, 'Priority') || 'Medium',
-        status:   col(r, 'Status', 'Job Status') || '',
-        cost:     num(col(r, 'Cost', 'Cost (AED)', 'Cost (£)', 'Amount', 'Value', 'Estimate')),
+        id:           col(r, 'Job ID', 'ID', 'Job No', 'Job Number', 'Ref') || ('MNT-' + String(idx + 1).padStart(3, '0')),
+        site:         col(r, 'Site / Nursery', 'Site', 'Location', 'Branch', 'Nursery') || '',
+        desc:         col(r, 'Description', 'Job Description', 'Desc', 'Details', 'Work') || '',
+        cat:          col(r, 'Category', 'Cat', 'Type', 'Job Type', 'Work Type') || '',
+        priority:     col(r, 'Priority') || 'Medium',
+        status:       col(r, 'Status', 'Job Status') || '',
+        cost:         num(col(r, 'Est. Cost (£)', 'Est. Cost (AED)', 'Cost', 'Cost (AED)', 'Cost (£)', 'Amount', 'Value', 'Estimate')),
+        raisedDate:   fmtDate(raisedRaw),
+        completedDate: fmtDate(completedRaw),
+        raisedDateObj: parseDateValue(raisedRaw),
+        completedDateObj: parseDateValue(completedRaw),
+        assignedTo:   col(r, 'Assigned To', 'Assigned', 'Technician', 'Owner') || '',
+        notes:        col(r, 'Notes', 'Remarks') || '',
       };
     }).filter(function (j) { return j.site || j.desc; });
 
@@ -115,14 +141,12 @@
     var ragKpi  = kpiVal(kpiRows, 'rag') || kpiVal(kpiRows, 'overall');
     var rag     = ragKpi ? String(ragKpi) : (overdueJobs > 3 ? 'Red' : overdueJobs > 0 ? 'Amber' : 'Green');
 
-    // Build byCat dynamically from jobs
     var byCat = {};
     jobs.forEach(function (j) {
       if (j.cat) byCat[j.cat] = (byCat[j.cat] || 0) + 1;
     });
     if (!Object.keys(byCat).length) byCat = { 'General': openJobs || jobs.length };
 
-    // Build bySite — prefer Sites Summary sheet, fall back to aggregating from jobs
     var bySite = {};
     if (siteRows.length) {
       siteRows.forEach(function (r) {
@@ -141,6 +165,29 @@
     }
     if (!Object.keys(bySite).length) bySite = { 'All Sites': openJobs };
 
+    var poCosts = poCostRows.map(function (r, idx) {
+      var rawDate = col(r, 'Date', 'PO Date', 'Invoice Date', 'Posting Date', 'Document Date', 'Created Date');
+      return {
+        id:          col(r, 'PO No', 'PO Number', 'PO', 'LPO', 'LPO No', 'Document No', 'Reference') || ('PO-' + String(idx + 1).padStart(3, '0')),
+        site:        col(r, 'Site / Nursery', 'Site', 'Nursery', 'Location', 'Branch', 'School', 'Campus') || '',
+        category:    col(r, 'Category', 'Expense Category', 'Sub Category', 'Cost Category', 'Type', 'Expense Type', 'GL Category') || '',
+        vendor:      col(r, 'Vendor', 'Supplier', 'Vendor Name', 'Supplier Name') || '',
+        desc:        col(r, 'Description', 'Item Description', 'Narration', 'Details', 'Remarks') || '',
+        amount:      num(col(r, 'Amount', 'Net Amount', 'Gross Amount', 'Total', 'Value', 'Cost', 'PO Value', 'Invoice Amount', 'Spend')),
+        date:        fmtDate(rawDate),
+        dateObj:     parseDateValue(rawDate),
+        deptTag:     col(r, 'Department', 'Expense Type', 'Type', 'Cost Center', 'Function') || '',
+      };
+    }).filter(function (p) { return p.site || p.category || p.amount || p.vendor || p.desc; });
+
+    var maintenanceTagged = poCosts.filter(function (p) {
+      var hay = [p.deptTag, p.category, p.desc].join(' ').toLowerCase();
+      return hay.indexOf('maint') !== -1;
+    });
+    if (maintenanceTagged.length) {
+      poCosts = maintenanceTagged;
+    }
+
     return {
       kpis: {
         openJobs:       openJobs,
@@ -149,9 +196,10 @@
         avgResponseHrs: avgResp || 0,
         rag:            rag,
       },
-      jobs:   jobs,
-      byCat:  byCat,
-      bySite: bySite,
+      jobs:    jobs,
+      byCat:   byCat,
+      bySite:  bySite,
+      poCosts: poCosts,
     };
   }
 

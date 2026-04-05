@@ -18,14 +18,14 @@
    * Each file lives in its own named document library (library field).
    */
   const SHEETS = {
-    maintenance: { file: '02_Maintenance_Dashboard.xlsx',        library: 'Maintenance',        kpi: '📊 KPI Summary', data: '🔧 Jobs Register',        sites: '🏢 Sites Summary' },
-    capex:       { file: '03_Capex_Dashboard_CEO.xlsx',          library: 'Capex',              kpi: '📊 KPI Summary', data: '📊 Nursery Budget View' },
-    projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: '📊 KPI Summary', data: '📁 Active Projects' },
-    procurement: { file: '04_Procurement_Dashboard.xlsx',        library: 'Procurement',        kpi: '📊 KPI Summary', data: '📋 PO Register',          dataHeaderRow: 2 },
-    it:          { file: '05_IT_Dashboard.xlsx',                 library: 'IT',                 kpi: '📊 KPI Summary', data: '🎫 Ticket Register' },
-    ma:          { file: '06_MA_Dashboard.xlsx',                 library: 'M&A',                kpi: '📊 KPI Summary', data: '🤝 Deal Pipeline',        dataHeaderRow: 2 },
-    greenfield:  { file: '07_Greenfield_Dashboard_CEO.xlsx',     library: 'Greenfield',         kpi: '📊 KPI Summary', data: '🏗 Pipeline Overview',    dataHeaderRow: 2 },
-    other:       { file: '08_Other_Projects_Dashboard.xlsx',     library: 'Other Projects',     kpi: '📊 KPI Summary', data: '📁 Projects Register' },
+    maintenance: { file: '02_Maintenance_Dashboard.xlsx', library: 'Maintenance', kpi: '📊 KPI Summary', data: '🔧 Jobs Register', sites: '🏢 Sites Summary', poCosts: 'MaintenancePOcost', poCostsFile: '01_Project_Management_Dashboard.xlsx', poCostsLibrary: 'Project Management', dataHeaderRow: 1, sitesHeaderRow: 1, poCostsHeaderRow: 'auto', poCostsHeaderKeywords: ['site', 'nursery', 'category', 'amount', 'date', 'po', 'vendor'] },
+    capex:       { file: '03_Capex_Dashboard_CEO.xlsx',     library: 'Capex',             kpi: '📊 KPI Summary', data: '📊 Nursery Budget View', dataHeaderRow: 1 },
+    projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: '📊 KPI Summary', data: '📁 Active Projects', dataHeaderRow: 1 },
+    procurement: { file: '04_Procurement_Dashboard.xlsx',   library: 'Procurement',       kpi: '📊 KPI Summary', data: '📋 PO Register',          dataHeaderRow: 2 },
+    it:          { file: '05_IT_Dashboard.xlsx',            library: 'IT',                kpi: '📊 KPI Summary', data: '🎫 Ticket Register',      dataHeaderRow: 1 },
+    ma:          { file: '06_MA_Dashboard.xlsx',            library: 'M&A',               kpi: '📊 KPI Summary', data: '🤝 Deal Pipeline',        dataHeaderRow: 2 },
+    greenfield:  { file: '07_Greenfield_Dashboard_CEO.xlsx', library: 'Greenfield',       kpi: '📊 KPI Summary', data: '🏗 Pipeline Overview',    dataHeaderRow: 2 },
+    other:       { file: '08_Other_Projects_Dashboard.xlsx', library: 'Other Projects',   kpi: '📊 KPI Summary', data: '📁 Projects Register',    dataHeaderRow: 1 },
   };
 
   /** Default auto-refresh interval in milliseconds (5 minutes). */
@@ -364,6 +364,30 @@
     return rows;
   }
 
+  
+  // ---------------------------------------------------------------------------
+  // detectHeaderRow — auto detect header row for flexible sheets
+  // ---------------------------------------------------------------------------
+
+  function detectHeaderRow(ws, keywords) {
+    if (!window.XLSX || !ws) return 0;
+    var rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: false });
+    if (!rows || !rows.length) return 0;
+    var bestRow = 0;
+    var bestScore = -1;
+    var terms = (keywords || []).map(function (k) { return String(k).toLowerCase(); });
+    for (var i = 0; i < Math.min(rows.length, 8); i++) {
+      var joined = (rows[i] || []).map(function (v) { return String(v || '').toLowerCase(); }).join(' | ');
+      var score = 0;
+      terms.forEach(function (t) { if (joined.indexOf(t) !== -1) score++; });
+      if (score > bestScore) {
+        bestScore = score;
+        bestRow = i;
+      }
+    }
+    return bestScore >= 2 ? bestRow : 0;
+  }
+
   // ---------------------------------------------------------------------------
   // fetchSheet — fetch a single worksheet from a department's Excel file
   // ---------------------------------------------------------------------------
@@ -399,18 +423,23 @@
       var ids = await resolveSiteAndDrive();
       if (!ids) return null;
 
-      // Use the library-specific drive for this department
-      var driveId = (dept.library && _driveMap[dept.library]) ? _driveMap[dept.library] : _driveId;
+      // Allow a specific sheet to come from a different workbook or library
+      var effectiveLibrary = dept[sheetKey + 'Library'] || dept.library;
+      var effectiveFile = dept[sheetKey + 'File'] || dept.file;
+
+      // Use the library-specific drive for this sheet source
+      var driveId = (effectiveLibrary && _driveMap[effectiveLibrary]) ? _driveMap[effectiveLibrary] : _driveId;
       if (!driveId) {
-        _warn('Drive not found for library "' + dept.library + '"');
+        _warn('Drive not found for library "' + effectiveLibrary + '"');
         return null;
       }
 
-      // Get (or reuse cached) parsed workbook for this department's Excel file
-      var wb = _workbookCache[deptKey];
+      // Get (or reuse cached) parsed workbook for this sheet source workbook
+      var wbCacheKey = deptKey + '::wb::' + effectiveLibrary + '::' + effectiveFile;
+      var wb = _workbookCache[wbCacheKey];
       if (!wb) {
         var itemId = null;
-        var encodedFile = encodeURIComponent(dept.file);
+        var encodedFile = encodeURIComponent(effectiveFile);
 
         // 1. Try the file at the root of the library drive
         var meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId + '/root:/' + encodedFile);
@@ -428,21 +457,21 @@
 
         // 3. Search the entire drive for the file by name
         if (!itemId) {
-          _log('Searching drive for ' + dept.file);
+          _log('Searching drive for ' + effectiveFile);
           var sr = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
-            "/root/search(q='" + dept.file.replace(/'/g, "''") + "')");
+            "/root/search(q='" + effectiveFile.replace(/'/g, "''") + "')");
           if (sr && sr.value && sr.value.length > 0) {
-            var hit = sr.value.find(function (i) { return i.name === dept.file; }) || sr.value[0];
+            var hit = sr.value.find(function (i) { return i.name === effectiveFile; }) || sr.value[0];
             if (hit && hit.id) {
               itemId = hit.id;
-              _log('Found ' + dept.file + ' via search at: ' +
+              _log('Found ' + effectiveFile + ' via search at: ' +
                 (hit.parentReference ? hit.parentReference.path : 'unknown path'));
             }
           }
         }
 
         if (!itemId) {
-          _warn('Could not resolve file ID for ' + dept.file);
+          _warn('Could not resolve file ID for ' + effectiveFile);
           return null;
         }
 
@@ -451,7 +480,7 @@
           GRAPH_BASE + '/drives/' + driveId + '/items/' + itemId + '/content'
         );
         if (!arrayBuffer) {
-          _warn('Download failed for ' + dept.file);
+          _warn('Download failed for ' + effectiveFile);
           return null;
         }
 
@@ -461,8 +490,8 @@
         }
 
         wb = window.XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
-        _workbookCache[deptKey] = wb;
-        _log('Downloaded and parsed ' + dept.file + ' — sheets: ' + wb.SheetNames.join(', '));
+        _workbookCache[wbCacheKey] = wb;
+        _log('Downloaded and parsed ' + effectiveFile + ' — sheets: ' + wb.SheetNames.join(', '));
       }
 
       // Extract the requested worksheet — match by normalised name so emoji
@@ -481,8 +510,11 @@
       }
 
       var sheetJsonOpts = { defval: null };
-      if (sheetKey === 'data' && dept.dataHeaderRow) {
-        sheetJsonOpts.range = dept.dataHeaderRow;
+      var headerRowProp = dept[sheetKey + 'HeaderRow'];
+      if (headerRowProp === 'auto') {
+        sheetJsonOpts.range = detectHeaderRow(ws, dept[sheetKey + 'HeaderKeywords'] || []);
+      } else if (headerRowProp !== undefined && headerRowProp !== null) {
+        sheetJsonOpts.range = headerRowProp;
       }
       var rows = window.XLSX.utils.sheet_to_json(ws, sheetJsonOpts);
       _dataCache[cacheKey] = { data: rows, timestamp: Date.now() };
@@ -524,6 +556,9 @@
       tasks.push({ deptKey: dk, sheetKey: 'data' });
       if (dept.sites) {
         tasks.push({ deptKey: dk, sheetKey: 'sites' });
+      }
+      if (dept.poCosts) {
+        tasks.push({ deptKey: dk, sheetKey: 'poCosts' });
       }
     });
 

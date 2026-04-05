@@ -17,14 +17,21 @@
     maintenance: {
       kpis: { openJobs: 10, completedMTD: 24, overdueJobs: 2, avgResponseHrs: 6.5, rag: 'Green' },
       jobs: [
-        { id: 'MNT-001', site: 'Site A', desc: 'Boiler service', cat: 'Planned', priority: 'High', status: 'In Progress', cost: 350 },
-        { id: 'MNT-002', site: 'Site B', desc: 'Roof leak repair', cat: 'Reactive', priority: 'Critical', status: 'Open', cost: 1200 },
-        { id: 'MNT-003', site: 'Site C', desc: 'Door lock replacement', cat: 'Reactive', priority: 'Medium', status: 'Completed', cost: 85 },
-        { id: 'MNT-004', site: 'Site D', desc: 'Fire alarm test', cat: 'Regulatory', priority: 'High', status: 'Scheduled', cost: 450 },
-        { id: 'MNT-005', site: 'Site E', desc: 'Painting hallway', cat: 'Aesthetic', priority: 'Low', status: 'On Hold', cost: 200 },
+        { id: 'MNT-001', site: 'Site A', desc: 'Boiler service', cat: 'Planned', priority: 'High', status: 'In Progress', cost: 350, raisedDate: '01/03/2026' },
+        { id: 'MNT-002', site: 'Site B', desc: 'Roof leak repair', cat: 'Reactive', priority: 'Critical', status: 'Open', cost: 1200, raisedDate: '05/03/2026' },
+        { id: 'MNT-003', site: 'Site C', desc: 'Door lock replacement', cat: 'Reactive', priority: 'Medium', status: 'Completed', cost: 85, raisedDate: '08/03/2026' },
+        { id: 'MNT-004', site: 'Site D', desc: 'Fire alarm test', cat: 'Regulatory', priority: 'High', status: 'Scheduled', cost: 450, raisedDate: '12/03/2026' },
+        { id: 'MNT-005', site: 'Site E', desc: 'Painting hallway', cat: 'Aesthetic', priority: 'Low', status: 'On Hold', cost: 200, raisedDate: '18/03/2026' },
       ],
       byCat: { Planned: 1, Reactive: 2, Regulatory: 1, Aesthetic: 1 },
       bySite: { LBN: 3, 'RWN-KA': 1, 'ODN-KA': 2, 'ODN-MU': 1, WCN: 2, 'RWN-JP': 1, 'ODN-BU': 0, 'RWN-SA': 0 },
+      poCosts: [
+        { id: 'PO-001', site: 'Site A', category: 'HVAC', vendor: 'CoolTech', desc: 'AC servicing', amount: 2400, date: '03/03/2026' },
+        { id: 'PO-002', site: 'Site B', category: 'Civil', vendor: 'BuildRight', desc: 'Leak rectification', amount: 1800, date: '10/03/2026' },
+        { id: 'PO-003', site: 'Site A', category: 'Electrical', vendor: 'VoltFix', desc: 'Lighting replacement', amount: 950, date: '15/03/2026' },
+        { id: 'PO-004', site: 'Site C', category: 'HVAC', vendor: 'CoolTech', desc: 'Compressor repair', amount: 3100, date: '20/03/2026' },
+        { id: 'PO-005', site: 'Site B', category: 'Fire', vendor: 'SafeAlarm', desc: 'Fire panel testing', amount: 1200, date: '28/03/2026' },
+      ],
     },
     capex: {
       kpis: { totalBudget: 10049443, utilised: 4665024, remaining: 5384419, utilisedPct: 46.4, negativeSites: 6, rag: 'Amber' },
@@ -130,6 +137,10 @@
   let DATA = null;       // current dataset (demo or live)
   let _isDemo = true;    // true when using demo data
   const CHARTS = {};     // { canvasId: Chart instance }
+  const MAINT_ANALYTICS_STATE = {
+    jobs: { sites: [], cats: [], from: '', to: '' },
+    po: { sites: [], cats: [], from: '', to: '' }
+  };
 
   // --------------------------------------------------------------------------
   //  Format Helpers
@@ -395,6 +406,279 @@
     }
   }
 
+
+  function parseDashboardDate(v) {
+    if (!v) return null;
+    if (v instanceof Date && !isNaN(v.getTime())) return v;
+    if (typeof v === 'number' && v > 1000) return new Date((v - 25569) * 86400 * 1000);
+    var s = String(v).trim();
+    var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (m) {
+      var y = parseInt(m[3], 10);
+      if (y < 100) y += 2000;
+      return new Date(y, parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+    }
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function monthKey(d) {
+    if (!d) return '';
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function monthLabel(key) {
+    if (!key) return 'No Date';
+    var parts = key.split('-');
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+    return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  }
+
+  function safeUnique(list) {
+    return Array.from(new Set((list || []).filter(Boolean).map(function (v) { return String(v).trim(); }))).sort();
+  }
+
+  function ensureStateSelection(stateArr, allOptions) {
+    if (!stateArr || !stateArr.length) return allOptions.slice();
+    var allowed = new Set(allOptions);
+    var filtered = stateArr.filter(function (v) { return allowed.has(v); });
+    return filtered.length ? filtered : allOptions.slice();
+  }
+
+  function populateMultiSelect(id, options, selectedValues) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var selected = new Set(selectedValues || []);
+    el.innerHTML = options.map(function (opt) {
+      return '<option value="' + String(opt).replace(/"/g, '&quot;') + '"' + (selected.has(opt) ? ' selected' : '') + '>' + opt + '</option>';
+    }).join('');
+  }
+
+  function readMultiSelect(id) {
+    var el = document.getElementById(id);
+    if (!el) return [];
+    return Array.from(el.selectedOptions).map(function (o) { return o.value; });
+  }
+
+  function inMonthRange(key, from, to) {
+    if (!key) return false;
+    if (from && key < from) return false;
+    if (to && key > to) return false;
+    return true;
+  }
+
+  function maintenancePalette() {
+    return ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#0EA5C9', '#1D4ED8', '#64748B'];
+  }
+
+  function renderAnalyticsSummary(id, stats) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = stats.map(function (s) {
+      return '<div class="analytics-stat"><div class="analytics-stat-label">' + s.label + '</div><div class="analytics-stat-value">' + s.value + '</div></div>';
+    }).join('');
+  }
+
+  function renderEmptyChartState(chartId, summaryId, message) {
+    if (CHARTS[chartId]) { CHARTS[chartId].destroy(); delete CHARTS[chartId]; }
+    var summary = document.getElementById(summaryId);
+    if (summary) summary.innerHTML = '<div class="empty-state">' + message + '</div>';
+  }
+
+  function bindMaintenanceAnalyticsControls(kind, rerender) {
+    var prefix = kind === 'po' ? 'maint-po' : 'maint-jobs';
+    var sitesEl = document.getElementById(prefix + '-sites');
+    var catsEl = document.getElementById(prefix + '-cats');
+    var fromEl = document.getElementById(prefix + '-from');
+    var toEl = document.getElementById(prefix + '-to');
+    var resetEl = document.getElementById(prefix + '-reset');
+    if (sitesEl) sitesEl.onchange = rerender;
+    if (catsEl) catsEl.onchange = rerender;
+    if (fromEl) fromEl.onchange = rerender;
+    if (toEl) toEl.onchange = rerender;
+    if (resetEl) {
+      resetEl.onclick = function () {
+        MAINT_ANALYTICS_STATE[kind] = { sites: [], cats: [], from: '', to: '' };
+        rerender();
+      };
+    }
+  }
+
+  function renderMaintenanceJobsAnalytics(m) {
+    var jobs = (m.jobs || []).map(function (j) {
+      var d = parseDashboardDate(j.raisedDate || j.raisedDateObj || j.date);
+      return Object.assign({}, j, { _month: monthKey(d) });
+    }).filter(function (j) { return j.site && j._month; });
+
+    if (!jobs.length) {
+      renderEmptyChartState('c-maint-jobs-analytics', 'maint-jobs-summary', 'No jobs register rows available for analytics.');
+      return;
+    }
+
+    var allSites = safeUnique(jobs.map(function (j) { return j.site; }));
+    var allCats = safeUnique(jobs.map(function (j) { return j.cat || 'Uncategorised'; }));
+    MAINT_ANALYTICS_STATE.jobs.sites = ensureStateSelection(MAINT_ANALYTICS_STATE.jobs.sites, allSites);
+    MAINT_ANALYTICS_STATE.jobs.cats = ensureStateSelection(MAINT_ANALYTICS_STATE.jobs.cats, allCats);
+
+    populateMultiSelect('maint-jobs-sites', allSites, MAINT_ANALYTICS_STATE.jobs.sites);
+    populateMultiSelect('maint-jobs-cats', allCats, MAINT_ANALYTICS_STATE.jobs.cats);
+
+    var fromEl = document.getElementById('maint-jobs-from');
+    var toEl = document.getElementById('maint-jobs-to');
+    if (fromEl) fromEl.value = MAINT_ANALYTICS_STATE.jobs.from || '';
+    if (toEl) toEl.value = MAINT_ANALYTICS_STATE.jobs.to || '';
+
+    var selectedSites = new Set(MAINT_ANALYTICS_STATE.jobs.sites);
+    var selectedCats = new Set(MAINT_ANALYTICS_STATE.jobs.cats);
+    var filtered = jobs.filter(function (j) {
+      var cat = j.cat || 'Uncategorised';
+      return selectedSites.has(j.site) && selectedCats.has(cat) && inMonthRange(j._month, MAINT_ANALYTICS_STATE.jobs.from, MAINT_ANALYTICS_STATE.jobs.to);
+    });
+
+    if (!filtered.length) {
+      renderEmptyChartState('c-maint-jobs-analytics', 'maint-jobs-summary', 'No jobs matched the current filter selection.');
+      bindMaintenanceAnalyticsControls('jobs', function () {
+        MAINT_ANALYTICS_STATE.jobs.sites = readMultiSelect('maint-jobs-sites');
+        MAINT_ANALYTICS_STATE.jobs.cats = readMultiSelect('maint-jobs-cats');
+        MAINT_ANALYTICS_STATE.jobs.from = (document.getElementById('maint-jobs-from') || {}).value || '';
+        MAINT_ANALYTICS_STATE.jobs.to = (document.getElementById('maint-jobs-to') || {}).value || '';
+        renderMaintenanceJobsAnalytics(m);
+      });
+      return;
+    }
+
+    var months = safeUnique(filtered.map(function (j) { return j._month; }));
+    var cats = Array.from(selectedCats);
+    var palette = maintenancePalette();
+    var datasets = cats.map(function (cat, idx) {
+      return {
+        label: cat,
+        data: months.map(function (month) {
+          return filtered.filter(function (j) { return j._month === month && (j.cat || 'Uncategorised') === cat; }).length;
+        }),
+        backgroundColor: palette[idx % palette.length],
+        borderRadius: 4,
+        stack: 'jobs',
+      };
+    });
+
+    renderAnalyticsSummary('maint-jobs-summary', [
+      { label: 'Filtered Jobs', value: filtered.length },
+      { label: 'Open Jobs', value: filtered.filter(function (j) { return ['open','in progress','scheduled','assigned'].indexOf(String(j.status || '').toLowerCase()) !== -1; }).length },
+      { label: 'Completed', value: filtered.filter(function (j) { return String(j.status || '').toLowerCase() === 'completed'; }).length },
+      { label: 'Est. Cost', value: faed(filtered.reduce(function (s, j) { return s + (Number(j.cost) || 0); }, 0)) },
+    ]);
+
+    mkChart('c-maint-jobs-analytics', {
+      type: 'bar',
+      data: { labels: months.map(monthLabel), datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top' } },
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#F1F5F9' } }
+        }
+      }
+    });
+
+    bindMaintenanceAnalyticsControls('jobs', function () {
+      MAINT_ANALYTICS_STATE.jobs.sites = readMultiSelect('maint-jobs-sites');
+      MAINT_ANALYTICS_STATE.jobs.cats = readMultiSelect('maint-jobs-cats');
+      MAINT_ANALYTICS_STATE.jobs.from = (document.getElementById('maint-jobs-from') || {}).value || '';
+      MAINT_ANALYTICS_STATE.jobs.to = (document.getElementById('maint-jobs-to') || {}).value || '';
+      renderMaintenanceJobsAnalytics(m);
+    });
+  }
+
+  function renderMaintenancePOAnalytics(m) {
+    var rows = (m.poCosts || []).map(function (r) {
+      var d = parseDashboardDate(r.date || r.dateObj);
+      return Object.assign({}, r, { _month: monthKey(d), _cat: r.category || 'Uncategorised' });
+    }).filter(function (r) { return r.site && r._month; });
+
+    if (!rows.length) {
+      renderEmptyChartState('c-maint-po-analytics', 'maint-po-summary', 'No MaintenancePOcost rows were found. Confirm the sheet name is exactly MaintenancePOcost and that it contains site, category, amount and date columns.');
+      return;
+    }
+
+    var allSites = safeUnique(rows.map(function (r) { return r.site; }));
+    var allCats = safeUnique(rows.map(function (r) { return r._cat; }));
+    MAINT_ANALYTICS_STATE.po.sites = ensureStateSelection(MAINT_ANALYTICS_STATE.po.sites, allSites);
+    MAINT_ANALYTICS_STATE.po.cats = ensureStateSelection(MAINT_ANALYTICS_STATE.po.cats, allCats);
+
+    populateMultiSelect('maint-po-sites', allSites, MAINT_ANALYTICS_STATE.po.sites);
+    populateMultiSelect('maint-po-cats', allCats, MAINT_ANALYTICS_STATE.po.cats);
+
+    var fromEl = document.getElementById('maint-po-from');
+    var toEl = document.getElementById('maint-po-to');
+    if (fromEl) fromEl.value = MAINT_ANALYTICS_STATE.po.from || '';
+    if (toEl) toEl.value = MAINT_ANALYTICS_STATE.po.to || '';
+
+    var selectedSites = new Set(MAINT_ANALYTICS_STATE.po.sites);
+    var selectedCats = new Set(MAINT_ANALYTICS_STATE.po.cats);
+    var filtered = rows.filter(function (r) {
+      return selectedSites.has(r.site) && selectedCats.has(r._cat) && inMonthRange(r._month, MAINT_ANALYTICS_STATE.po.from, MAINT_ANALYTICS_STATE.po.to);
+    });
+
+    if (!filtered.length) {
+      renderEmptyChartState('c-maint-po-analytics', 'maint-po-summary', 'No maintenance expense rows matched the current filter selection.');
+      bindMaintenanceAnalyticsControls('po', function () {
+        MAINT_ANALYTICS_STATE.po.sites = readMultiSelect('maint-po-sites');
+        MAINT_ANALYTICS_STATE.po.cats = readMultiSelect('maint-po-cats');
+        MAINT_ANALYTICS_STATE.po.from = (document.getElementById('maint-po-from') || {}).value || '';
+        MAINT_ANALYTICS_STATE.po.to = (document.getElementById('maint-po-to') || {}).value || '';
+        renderMaintenancePOAnalytics(m);
+      });
+      return;
+    }
+
+    var months = safeUnique(filtered.map(function (r) { return r._month; }));
+    var cats = Array.from(selectedCats);
+    var palette = maintenancePalette();
+    var datasets = cats.map(function (cat, idx) {
+      return {
+        label: cat,
+        data: months.map(function (month) {
+          return filtered.filter(function (r) { return r._month === month && r._cat === cat; }).reduce(function (s, r) { return s + (Number(r.amount) || 0); }, 0);
+        }),
+        backgroundColor: palette[idx % palette.length],
+        borderRadius: 4,
+        stack: 'cost',
+      };
+    });
+
+    renderAnalyticsSummary('maint-po-summary', [
+      { label: 'Filtered POs', value: filtered.length },
+      { label: 'Total Spend', value: faed(filtered.reduce(function (s, r) { return s + (Number(r.amount) || 0); }, 0)) },
+      { label: 'Avg. PO', value: faed(filtered.length ? filtered.reduce(function (s, r) { return s + (Number(r.amount) || 0); }, 0) / filtered.length : 0) },
+      { label: 'Vendors', value: safeUnique(filtered.map(function (r) { return r.vendor; })).length },
+    ]);
+
+    mkChart('c-maint-po-analytics', {
+      type: 'bar',
+      data: { labels: months.map(monthLabel), datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top' } },
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, beginAtZero: true, grid: { color: '#F1F5F9' } }
+        }
+      }
+    });
+
+    bindMaintenanceAnalyticsControls('po', function () {
+      MAINT_ANALYTICS_STATE.po.sites = readMultiSelect('maint-po-sites');
+      MAINT_ANALYTICS_STATE.po.cats = readMultiSelect('maint-po-cats');
+      MAINT_ANALYTICS_STATE.po.from = (document.getElementById('maint-po-from') || {}).value || '';
+      MAINT_ANALYTICS_STATE.po.to = (document.getElementById('maint-po-to') || {}).value || '';
+      renderMaintenancePOAnalytics(m);
+    });
+  }
+
   // --------------------------------------------------------------------------
   //  Build: Maintenance
   // --------------------------------------------------------------------------
@@ -403,7 +687,6 @@
     const D = DATA;
     const m = (D && D.maintenance) ? D.maintenance : DEMO.maintenance;
 
-    // KPIs
     const kpiEl = document.getElementById('k-maint');
     if (kpiEl) {
       kpiEl.innerHTML = [
@@ -414,10 +697,9 @@
       ].join('');
     }
 
-    // Jobs by site bar
     const siteCfg = getCfg('c-maint-site');
-    const siteLabels = Object.keys(m.bySite);
-    const siteData = Object.values(m.bySite);
+    const siteLabels = Object.keys(m.bySite || {});
+    const siteData = Object.values(m.bySite || {});
     mkChart('c-maint-site', {
       type: 'bar',
       data: {
@@ -427,26 +709,27 @@
       options: noGridOpts({ indexAxis: siteCfg ? siteCfg.indexAxis : 'y' }),
     });
 
-    // Jobs by category doughnut
     const catCfg = getCfg('c-maint-cat');
     mkChart('c-maint-cat', {
       type: 'doughnut',
       data: {
-        labels: Object.keys(m.byCat),
-        datasets: [{ data: Object.values(m.byCat), backgroundColor: catCfg ? catCfg.colors : ['#2563EB', '#EF4444', '#F59E0B', '#10B981'] }],
+        labels: Object.keys(m.byCat || {}),
+        datasets: [{ data: Object.values(m.byCat || {}), backgroundColor: catCfg ? catCfg.colors : ['#2563EB', '#EF4444', '#F59E0B', '#10B981'] }],
       },
       options: Object.assign(doughnutOpts(catCfg ? catCfg.legendPosition : 'right'), { cutout: catCfg ? catCfg.cutout : '60%' }),
     });
 
-    // Jobs table
     const tbl = document.getElementById('t-maint-jobs');
     if (tbl) {
       let html = '';
-      m.jobs.forEach(j => {
+      (m.jobs || []).forEach(j => {
         html += '<tr><td>' + j.id + '</td><td>' + j.site + '</td><td>' + j.desc + '</td><td>' + j.cat + '</td><td>' + pill(j.priority) + '</td><td>' + pill(j.status) + '</td><td>' + fn(j.cost) + '</td></tr>';
       });
       tbl.innerHTML = html;
     }
+
+    renderMaintenanceJobsAnalytics(m);
+    renderMaintenancePOAnalytics(m);
   }
 
   // --------------------------------------------------------------------------
