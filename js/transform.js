@@ -338,19 +338,35 @@
     var kpiRows  = raw.kpi  || [];
     var dataRows = raw.data || [];
 
-    // PO Register columns: PO Number, Supplier, Description, Dept, Raised Date,
-    // Value (£), Status, Approved By, Expected Delivery, Actual Delivery, Notes
-    var pos = dataRows.map(function (r) {
+    var refLabel = 'PO Number';
+    if (dataRows.length) {
+      var firstKeys = Object.keys(dataRows[0]);
+      if (firstKeys.some(function (k) { return String(k).toLowerCase().trim() === 'nursery'; })) {
+        refLabel = 'Nursery';
+      }
+    }
+
+    var pos = dataRows.map(function (r, idx) {
+      var refValue = col(r, 'Nursery', 'PO Number', 'PO No', 'PO #', 'Purchase Order No', 'Ref') || '';
+      var nurseryValue = col(r, 'Nursery', 'Site / Nursery', 'Site', 'Location', 'Branch') || refValue || '';
+      var categoryValue = col(r, 'Category', 'Dept', 'Department', 'Cost Centre', 'Division') || '';
+      var raisedRaw = col(r, 'Raised Date', 'Date Raised', 'Created Date', 'Date');
       return {
-        po:       col(r, 'PO Number', 'PO No', 'PO #', 'Purchase Order No', 'Ref') || '',
-        supplier: col(r, 'Supplier', 'Vendor', 'Supplier Name') || '',
-        desc:     col(r, 'Description', 'Desc', 'Item Description', 'Details') || '',
-        dept:     col(r, 'Dept', 'Department', 'Cost Centre', 'Division') || '',
-        value:    num(col(r, 'Value (£)', 'Value (AED)', 'Value', 'Amount', 'Total Value', 'PO Value')),
-        status:   col(r, 'Status', 'PO Status', 'Approval Status') || '',
-        delivery: fmtDate(col(r, 'Actual Delivery', 'Expected Delivery', 'Delivery Date', 'Due Date')),
+        ref:       refValue,
+        po:        refValue,
+        nursery:   nurseryValue,
+        site:      nurseryValue,
+        supplier:  col(r, 'Supplier', 'Vendor', 'Supplier Name') || '',
+        desc:      col(r, 'Description', 'Desc', 'Item Description', 'Details') || '',
+        category:  categoryValue,
+        dept:      categoryValue,
+        value:     num(col(r, 'Value (£)', 'Value (AED)', 'Value', 'Amount', 'Total Value', 'PO Value')),
+        status:    col(r, 'Status', 'PO Status', 'Approval Status') || '',
+        raisedDate: fmtDate(raisedRaw),
+        date:      fmtDate(raisedRaw),
+        delivery:  fmtDate(col(r, 'Actual Delivery', 'Expected Delivery', 'Delivery Date', 'Due Date')),
       };
-    }).filter(function (p) { return p.po || p.supplier; });
+    }).filter(function (p) { return p.ref || p.supplier || p.nursery; });
 
     var activePOs = pos.filter(function (p) {
       var s = (p.status || '').toLowerCase();
@@ -364,7 +380,6 @@
     var ragKpi = kpiVal(kpiRows, 'rag') || kpiVal(kpiRows, 'overall');
     var rag    = ragKpi ? String(ragKpi) : (overdue > 2 ? 'Red' : overdue > 0 ? 'Amber' : 'Green');
 
-    // Use KPI sheet values if present (Excel formulas may give more accurate totals)
     var activePOsK = kpiVal(kpiRows, 'active');
     var pendingK   = kpiVal(kpiRows, 'pending');
     var overdueK   = kpiVal(kpiRows, 'overdue');
@@ -372,8 +387,8 @@
 
     var bySt = {}, byDept = {};
     pos.forEach(function (p) {
-      if (p.status) bySt[p.status]  = (bySt[p.status] || 0) + 1;
-      if (p.dept)   byDept[p.dept]  = (byDept[p.dept] || 0) + p.value;
+      if (p.status) bySt[p.status] = (bySt[p.status] || 0) + 1;
+      if (p.category) byDept[p.category] = (byDept[p.category] || 0) + p.value;
     });
 
     return {
@@ -384,6 +399,7 @@
         spendYTD:  spendK     !== null ? num(spendK)     : spendYTD,
         rag:       rag,
       },
+      refLabel: refLabel,
       pos:    pos,
       bySt:   Object.keys(bySt).length   ? bySt   : { 'N/A': 1 },
       byDept: Object.keys(byDept).length ? byDept : { 'General': spendYTD },

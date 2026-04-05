@@ -370,6 +370,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-procurement','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','orders')" type="button">PO Register</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','analytics')" type="button">PO Analytics</button>
         </div>
         <div class="tab-pane active" id="pg-procurement-overview">
           <div class="grid-2">
@@ -390,10 +391,40 @@
             <h3 class="card-title">Purchase Order Register</h3>
             <div class="tbl-wrap">
               <table role="table" aria-label="Purchase order register">
-                <thead><tr><th scope="col">PO Number</th><th scope="col">Supplier</th><th scope="col">Description</th><th scope="col">Dept</th><th scope="col">Value (AED)</th><th scope="col">Status</th><th scope="col">Expected Delivery</th></tr></thead>
+                <thead><tr><th scope="col" id="t-proc-ref-label">PO Number</th><th scope="col">Supplier</th><th scope="col">Description</th><th scope="col">Category</th><th scope="col">Value (AED)</th><th scope="col">Status</th><th scope="col">Raised Date</th></tr></thead>
                 <tbody id="t-proc"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-procurement-analytics">
+          <div class="card">
+            <h3 class="card-title">Interactive Procurement Analytics</h3>
+            <div class="card-sub">Filter purchase orders by nursery, category and period. PO Created shows the total number of filtered POs, with category wise spend shown below.</div>
+            <div class="analytics-filters">
+              <div class="analytics-field">
+                <label for="proc-sites">Nursery</label>
+                <select id="proc-sites" multiple></select>
+              </div>
+              <div class="analytics-field">
+                <label for="proc-cats">Category</label>
+                <select id="proc-cats" multiple></select>
+              </div>
+              <div class="analytics-field">
+                <label for="proc-from">From Month</label>
+                <input id="proc-from" type="month" />
+              </div>
+              <div class="analytics-field">
+                <label for="proc-to">To Month</label>
+                <input id="proc-to" type="month" />
+              </div>
+              <div class="analytics-actions">
+                <button class="btn btn-ghost" type="button" id="proc-reset">Reset Filters</button>
+              </div>
+            </div>
+            <div class="analytics-summary" id="proc-summary"></div>
+            <div id="proc-category-breakdown"></div>
+            <div class="chart-wrap" style="height:340px"><canvas id="c-proc-analytics" aria-label="Procurement analytics chart"></canvas></div>
           </div>
         </div>
       </section>

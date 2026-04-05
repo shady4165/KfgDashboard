@@ -141,6 +141,9 @@
     jobs: { sites: [], cats: [], from: '', to: '' },
     po: { sites: [], cats: [], from: '', to: '' }
   };
+  const PROC_ANALYTICS_STATE = {
+    sites: [], cats: [], from: '', to: '' }
+;
 
   // --------------------------------------------------------------------------
   //  Format Helpers
@@ -438,71 +441,39 @@
     return Array.from(new Set((list || []).filter(Boolean).map(function (v) { return String(v).trim(); }))).sort();
   }
 
-  function sitePrefix(site) {
-    var s = String(site || '').trim();
+  function canonicalSiteValue(v) {
+    var s = String(v || '').trim().toUpperCase();
     if (!s) return '';
-    return s.split('-')[0].trim().toUpperCase();
+    if (s === 'CON' || s === 'CON-UM') return 'CON-UM';
+    if (s === 'KFG' || s === 'KFG-LLC') return 'KFG-LLC';
+    return s;
   }
 
-  function buildSiteNormalizer(sites) {
-    var groups = {};
-    (sites || []).forEach(function (site) {
-      var raw = String(site || '').trim();
-      if (!raw) return;
-      var prefix = sitePrefix(raw);
-      if (!groups[prefix]) groups[prefix] = { bare: false, hyphenated: new Set() };
-      if (raw.toUpperCase() === prefix) groups[prefix].bare = true;
-      else if (raw.toUpperCase().indexOf(prefix + '-') === 0) groups[prefix].hyphenated.add(raw);
+  function siteFilterOptions(values) {
+    var canonValues = safeUnique((values || []).map(canonicalSiteValue));
+    var optionSet = new Set();
+    canonValues.forEach(function (site) {
+      if (!site) return;
+      optionSet.add(site);
+      var prefix = site.split('-')[0];
+      var groupMembers = canonValues.filter(function (v) { return v === prefix || v.indexOf(prefix + '-') === 0; });
+      if (groupMembers.length > 1) optionSet.add(prefix + ' (All)');
     });
+    return Array.from(optionSet).sort();
+  }
 
-    return function (site) {
-      var raw = String(site || '').trim();
-      if (!raw) return '';
-      var prefix = sitePrefix(raw);
-      var g = groups[prefix];
-      if (g && g.bare && g.hyphenated.size === 1) {
-        return Array.from(g.hyphenated)[0];
+  function matchesSiteSelection(siteValue, selectedSet) {
+    if (!selectedSet || !selectedSet.size) return true;
+    var site = canonicalSiteValue(siteValue);
+    if (!site) return false;
+    if (selectedSet.has(site)) return true;
+    for (var val of selectedSet.values()) {
+      if (String(val).endsWith(' (All)')) {
+        var prefix = String(val).slice(0, -6);
+        if (site === prefix || site.indexOf(prefix + '-') === 0) return true;
       }
-      return raw;
-    };
-  }
-
-  function siteFilterOptions(sites) {
-    var normalizeSite = buildSiteNormalizer(sites);
-    var canonicalSites = safeUnique((sites || []).map(normalizeSite));
-    var groupMap = {};
-
-    canonicalSites.forEach(function (site) {
-      var prefix = sitePrefix(site);
-      if (!prefix) return;
-      if (!groupMap[prefix]) groupMap[prefix] = new Set();
-      groupMap[prefix].add(site);
-    });
-
-    var groups = Object.keys(groupMap)
-      .filter(function (prefix) { return groupMap[prefix].size >= 2; })
-      .sort()
-      .map(function (prefix) { return prefix + ' (All)'; });
-
-    return {
-      options: groups.concat(canonicalSites),
-      normalizeSite: normalizeSite
-    };
-  }
-
-  function matchesSiteSelection(site, selectedValues, normalizeSite) {
-    var selections = selectedValues || [];
-    if (!selections.length) return true;
-    var canonical = normalizeSite ? normalizeSite(site) : String(site || '').trim();
-    var prefix = sitePrefix(canonical);
-    return selections.some(function (sel) {
-      var value = String(sel || '').trim();
-      if (!value) return false;
-      if (/\s+\(All\)$/.test(value)) {
-        return prefix === value.replace(/\s+\(All\)$/, '').toUpperCase();
-      }
-      return canonical === value;
-    });
+    }
+    return false;
   }
 
   function ensureStateSelection(stateArr, allOptions) {
@@ -582,9 +553,7 @@
       return;
     }
 
-    var siteMeta = siteFilterOptions(jobs.map(function (j) { return j.site; }));
-    var allSites = siteMeta.options;
-    var normalizeJobSite = siteMeta.normalizeSite;
+    var allSites = siteFilterOptions(jobs.map(function (j) { return j.site; }));
     var allCats = safeUnique(jobs.map(function (j) { return j.cat || 'Uncategorised'; }));
     MAINT_ANALYTICS_STATE.jobs.sites = ensureStateSelection(MAINT_ANALYTICS_STATE.jobs.sites, allSites);
     MAINT_ANALYTICS_STATE.jobs.cats = ensureStateSelection(MAINT_ANALYTICS_STATE.jobs.cats, allCats);
@@ -597,10 +566,11 @@
     if (fromEl) fromEl.value = MAINT_ANALYTICS_STATE.jobs.from || '';
     if (toEl) toEl.value = MAINT_ANALYTICS_STATE.jobs.to || '';
 
+    var selectedSites = new Set(MAINT_ANALYTICS_STATE.jobs.sites);
     var selectedCats = new Set(MAINT_ANALYTICS_STATE.jobs.cats);
     var filtered = jobs.filter(function (j) {
       var cat = j.cat || 'Uncategorised';
-      return matchesSiteSelection(j.site, MAINT_ANALYTICS_STATE.jobs.sites, normalizeJobSite) && selectedCats.has(cat) && inMonthRange(j._month, MAINT_ANALYTICS_STATE.jobs.from, MAINT_ANALYTICS_STATE.jobs.to);
+      return matchesSiteSelection(j.site, selectedSites) && selectedCats.has(cat) && inMonthRange(j._month, MAINT_ANALYTICS_STATE.jobs.from, MAINT_ANALYTICS_STATE.jobs.to);
     });
 
     if (!filtered.length) {
@@ -626,8 +596,6 @@
         }),
         backgroundColor: palette[idx % palette.length],
         borderRadius: 4,
-        categoryPercentage: 0.72,
-        barPercentage: 0.9,
       };
     });
 
@@ -672,9 +640,7 @@
       return;
     }
 
-    var siteMeta = siteFilterOptions(rows.map(function (r) { return r.site; }));
-    var allSites = siteMeta.options;
-    var normalizePOSite = siteMeta.normalizeSite;
+    var allSites = siteFilterOptions(rows.map(function (r) { return r.site; }));
     var allCats = safeUnique(rows.map(function (r) { return r._cat; }));
     MAINT_ANALYTICS_STATE.po.sites = ensureStateSelection(MAINT_ANALYTICS_STATE.po.sites, allSites);
     MAINT_ANALYTICS_STATE.po.cats = ensureStateSelection(MAINT_ANALYTICS_STATE.po.cats, allCats);
@@ -687,9 +653,10 @@
     if (fromEl) fromEl.value = MAINT_ANALYTICS_STATE.po.from || '';
     if (toEl) toEl.value = MAINT_ANALYTICS_STATE.po.to || '';
 
+    var selectedSites = new Set(MAINT_ANALYTICS_STATE.po.sites);
     var selectedCats = new Set(MAINT_ANALYTICS_STATE.po.cats);
     var filtered = rows.filter(function (r) {
-      return matchesSiteSelection(r.site, MAINT_ANALYTICS_STATE.po.sites, normalizePOSite) && selectedCats.has(r._cat) && inMonthRange(r._month, MAINT_ANALYTICS_STATE.po.from, MAINT_ANALYTICS_STATE.po.to);
+      return matchesSiteSelection(r.site, selectedSites) && selectedCats.has(r._cat) && inMonthRange(r._month, MAINT_ANALYTICS_STATE.po.from, MAINT_ANALYTICS_STATE.po.to);
     });
 
     if (!filtered.length) {
@@ -715,8 +682,6 @@
         }),
         backgroundColor: palette[idx % palette.length],
         borderRadius: 4,
-        categoryPercentage: 0.72,
-        barPercentage: 0.9,
       };
     });
 
@@ -928,6 +893,153 @@
     }
   }
 
+
+  function renderCategorySpendBreakdown(id, rows, labelKey, valueKey) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var map = {};
+    (rows || []).forEach(function (r) {
+      var label = String(r[labelKey] || 'Uncategorised').trim() || 'Uncategorised';
+      if (!map[label]) map[label] = { count: 0, spend: 0 };
+      map[label].count += 1;
+      map[label].spend += Number(r[valueKey]) || 0;
+    });
+    var entries = Object.keys(map).sort().map(function (k) {
+      return { label: k, count: map[k].count, spend: map[k].spend };
+    });
+    if (!entries.length) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = '<div class="analytics-breakdown-title">Category Spend Breakdown</div>' +
+      '<div class="analytics-breakdown-grid">' +
+      entries.map(function (e) {
+        return '<div class="analytics-breakdown-item">' +
+          '<div class="analytics-breakdown-label">' + e.label + '</div>' +
+          '<div class="analytics-breakdown-meta">' + e.count + ' PO' + (e.count === 1 ? '' : 's') + '</div>' +
+          '<div class="analytics-breakdown-value">' + faed(e.spend) + '</div>' +
+        '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  function bindProcurementAnalyticsControls(rerender) {
+    var sitesEl = document.getElementById('proc-sites');
+    var catsEl = document.getElementById('proc-cats');
+    var fromEl = document.getElementById('proc-from');
+    var toEl = document.getElementById('proc-to');
+    var resetEl = document.getElementById('proc-reset');
+    if (sitesEl) sitesEl.onchange = rerender;
+    if (catsEl) catsEl.onchange = rerender;
+    if (fromEl) fromEl.onchange = rerender;
+    if (toEl) toEl.onchange = rerender;
+    if (resetEl) {
+      resetEl.onclick = function () {
+        PROC_ANALYTICS_STATE.sites = [];
+        PROC_ANALYTICS_STATE.cats = [];
+        PROC_ANALYTICS_STATE.from = '';
+        PROC_ANALYTICS_STATE.to = '';
+        rerender();
+      };
+    }
+  }
+
+  function renderProcurementAnalytics(pr) {
+    var rows = (pr.pos || []).map(function (r) {
+      var d = parseDashboardDate(r.raisedDate || r.deliveryDate || r.date);
+      return Object.assign({}, r, {
+        _month: monthKey(d),
+        _site: canonicalSiteValue(r.nursery || r.site || r.ref || r.po),
+        _cat: String(r.category || r.dept || 'Uncategorised').trim() || 'Uncategorised'
+      });
+    }).filter(function (r) { return r._site && r._month; });
+
+    if (!rows.length) {
+      renderEmptyChartState('c-proc-analytics', 'proc-summary', 'No procurement rows available for analytics.');
+      renderCategorySpendBreakdown('proc-category-breakdown', [], 'category', 'value');
+      return;
+    }
+
+    var allSites = siteFilterOptions(rows.map(function (r) { return r._site; }));
+    var allCats = safeUnique(rows.map(function (r) { return r._cat; }));
+    PROC_ANALYTICS_STATE.sites = ensureStateSelection(PROC_ANALYTICS_STATE.sites, allSites);
+    PROC_ANALYTICS_STATE.cats = ensureStateSelection(PROC_ANALYTICS_STATE.cats, allCats);
+
+    populateMultiSelect('proc-sites', allSites, PROC_ANALYTICS_STATE.sites);
+    populateMultiSelect('proc-cats', allCats, PROC_ANALYTICS_STATE.cats);
+
+    var fromEl = document.getElementById('proc-from');
+    var toEl = document.getElementById('proc-to');
+    if (fromEl) fromEl.value = PROC_ANALYTICS_STATE.from || '';
+    if (toEl) toEl.value = PROC_ANALYTICS_STATE.to || '';
+
+    var selectedSites = new Set(PROC_ANALYTICS_STATE.sites);
+    var selectedCats = new Set(PROC_ANALYTICS_STATE.cats);
+    var filtered = rows.filter(function (r) {
+      return matchesSiteSelection(r._site, selectedSites) && selectedCats.has(r._cat) && inMonthRange(r._month, PROC_ANALYTICS_STATE.from, PROC_ANALYTICS_STATE.to);
+    });
+
+    if (!filtered.length) {
+      renderEmptyChartState('c-proc-analytics', 'proc-summary', 'No procurement rows matched the current filter selection.');
+      renderCategorySpendBreakdown('proc-category-breakdown', [], 'category', 'value');
+      bindProcurementAnalyticsControls(function () {
+        PROC_ANALYTICS_STATE.sites = readMultiSelect('proc-sites');
+        PROC_ANALYTICS_STATE.cats = readMultiSelect('proc-cats');
+        PROC_ANALYTICS_STATE.from = (document.getElementById('proc-from') || {}).value || '';
+        PROC_ANALYTICS_STATE.to = (document.getElementById('proc-to') || {}).value || '';
+        renderProcurementAnalytics(pr);
+      });
+      return;
+    }
+
+    var months = safeUnique(filtered.map(function (r) { return r._month; }));
+    var cats = Array.from(selectedCats);
+    var palette = maintenancePalette();
+    var datasets = cats.map(function (cat, idx) {
+      return {
+        label: cat,
+        data: months.map(function (month) {
+          return filtered.filter(function (r) { return r._month === month && r._cat === cat; }).reduce(function (s, r) { return s + (Number(r.value) || 0); }, 0);
+        }),
+        backgroundColor: palette[idx % palette.length],
+        borderRadius: 4
+      };
+    });
+
+    renderAnalyticsSummary('proc-summary', [
+      { label: 'PO Created', value: filtered.length },
+      { label: 'Total Spend', value: faed(filtered.reduce(function (s, r) { return s + (Number(r.value) || 0); }, 0)) },
+      { label: 'Nurseries', value: safeUnique(filtered.map(function (r) { return r._site; })).length },
+      { label: 'Suppliers', value: safeUnique(filtered.map(function (r) { return r.supplier; })).length }
+    ]);
+
+    renderCategorySpendBreakdown('proc-category-breakdown', filtered.map(function (r) {
+      return { category: r._cat, value: r.value };
+    }), 'category', 'value');
+
+    mkChart('c-proc-analytics', {
+      type: 'bar',
+      data: { labels: months.map(monthLabel), datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top' } },
+        scales: {
+          x: { stacked: false, grid: { display: false } },
+          y: { stacked: false, beginAtZero: true, grid: { color: '#F1F5F9' } }
+        }
+      }
+    });
+
+    bindProcurementAnalyticsControls(function () {
+      PROC_ANALYTICS_STATE.sites = readMultiSelect('proc-sites');
+      PROC_ANALYTICS_STATE.cats = readMultiSelect('proc-cats');
+      PROC_ANALYTICS_STATE.from = (document.getElementById('proc-from') || {}).value || '';
+      PROC_ANALYTICS_STATE.to = (document.getElementById('proc-to') || {}).value || '';
+      renderProcurementAnalytics(pr);
+    });
+  }
+
   // --------------------------------------------------------------------------
   //  Build: Procurement
   // --------------------------------------------------------------------------
@@ -969,15 +1081,21 @@
       options: noGridOpts(),
     });
 
+    const refHead = document.getElementById('t-proc-ref-label');
+    if (refHead) refHead.textContent = pr.refLabel || 'PO Number';
+
     // PO table
     const tbl = document.getElementById('t-proc');
     if (tbl) {
       let html = '';
       pr.pos.forEach(r => {
-        html += '<tr><td>' + r.po + '</td><td>' + r.supplier + '</td><td>' + r.desc + '</td><td>' + r.dept + '</td><td>' + fn(r.value) + '</td><td>' + pill(r.status) + '</td><td>' + r.delivery + '</td></tr>';
+        var refValue = r.ref || r.po || '';
+        html += '<tr><td>' + refValue + '</td><td>' + r.supplier + '</td><td>' + r.desc + '</td><td>' + (r.category || r.dept || '') + '</td><td>' + fn(r.value) + '</td><td>' + pill(r.status) + '</td><td>' + (r.raisedDate || r.delivery || '') + '</td></tr>';
       });
       tbl.innerHTML = html;
     }
+
+    renderProcurementAnalytics(pr);
   }
 
   // --------------------------------------------------------------------------

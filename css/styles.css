@@ -2144,3 +2144,43 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   .analytics-filters,
   .analytics-summary { grid-template-columns: 1fr; }
 }
+
+
+.analytics-breakdown-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 4px 0 10px;
+}
+.analytics-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.analytics-breakdown-item {
+  background: rgba(16,185,129,0.05);
+  border: 1px solid rgba(16,185,129,0.10);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.analytics-breakdown-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+.analytics-breakdown-meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.analytics-breakdown-value {
+  font-family: var(--display);
+  font-size: 22px;
+  line-height: 1.1;
+  color: var(--navy);
+}
