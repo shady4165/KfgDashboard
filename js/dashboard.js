@@ -438,28 +438,78 @@
     return Array.from(new Set((list || []).filter(Boolean).map(function (v) { return String(v).trim(); }))).sort();
   }
 
+  function sitePrefix(site) {
+    var s = String(site || '').trim();
+    if (!s) return '';
+    return s.split('-')[0].trim().toUpperCase();
+  }
+
+  function buildSiteNormalizer(sites) {
+    var groups = {};
+    (sites || []).forEach(function (site) {
+      var raw = String(site || '').trim();
+      if (!raw) return;
+      var prefix = sitePrefix(raw);
+      if (!groups[prefix]) groups[prefix] = { bare: false, hyphenated: new Set() };
+      if (raw.toUpperCase() === prefix) groups[prefix].bare = true;
+      else if (raw.toUpperCase().indexOf(prefix + '-') === 0) groups[prefix].hyphenated.add(raw);
+    });
+
+    return function (site) {
+      var raw = String(site || '').trim();
+      if (!raw) return '';
+      var prefix = sitePrefix(raw);
+      var g = groups[prefix];
+      if (g && g.bare && g.hyphenated.size === 1) {
+        return Array.from(g.hyphenated)[0];
+      }
+      return raw;
+    };
+  }
+
+  function siteFilterOptions(sites) {
+    var normalizeSite = buildSiteNormalizer(sites);
+    var canonicalSites = safeUnique((sites || []).map(normalizeSite));
+    var groupMap = {};
+
+    canonicalSites.forEach(function (site) {
+      var prefix = sitePrefix(site);
+      if (!prefix) return;
+      if (!groupMap[prefix]) groupMap[prefix] = new Set();
+      groupMap[prefix].add(site);
+    });
+
+    var groups = Object.keys(groupMap)
+      .filter(function (prefix) { return groupMap[prefix].size >= 2; })
+      .sort()
+      .map(function (prefix) { return prefix + ' (All)'; });
+
+    return {
+      options: groups.concat(canonicalSites),
+      normalizeSite: normalizeSite
+    };
+  }
+
+  function matchesSiteSelection(site, selectedValues, normalizeSite) {
+    var selections = selectedValues || [];
+    if (!selections.length) return true;
+    var canonical = normalizeSite ? normalizeSite(site) : String(site || '').trim();
+    var prefix = sitePrefix(canonical);
+    return selections.some(function (sel) {
+      var value = String(sel || '').trim();
+      if (!value) return false;
+      if (/\s+\(All\)$/.test(value)) {
+        return prefix === value.replace(/\s+\(All\)$/, '').toUpperCase();
+      }
+      return canonical === value;
+    });
+  }
+
   function ensureStateSelection(stateArr, allOptions) {
     if (!stateArr || !stateArr.length) return allOptions.slice();
     var allowed = new Set(allOptions);
     var filtered = stateArr.filter(function (v) { return allowed.has(v); });
     return filtered.length ? filtered : allOptions.slice();
-  }
-
-  function siteFilterOptions(list) {
-    var exact = safeUnique(list);
-    var groups = safeUnique(exact.map(function (v) {
-      var s = String(v || '').trim();
-      return s.indexOf('-') !== -1 ? s.split('-')[0] : s;
-    })).filter(function (v) { return v && exact.indexOf(v) === -1; });
-    return groups.concat(exact);
-  }
-
-  function matchesSiteSelection(site, selectedSites) {
-    if (!selectedSites || !selectedSites.size) return true;
-    var s = String(site || '').trim();
-    if (selectedSites.has(s)) return true;
-    var group = s.indexOf('-') !== -1 ? s.split('-')[0] : s;
-    return selectedSites.has(group);
   }
 
   function populateMultiSelect(id, options, selectedValues) {
@@ -532,7 +582,9 @@
       return;
     }
 
-    var allSites = siteFilterOptions(jobs.map(function (j) { return j.site; }));
+    var siteMeta = siteFilterOptions(jobs.map(function (j) { return j.site; }));
+    var allSites = siteMeta.options;
+    var normalizeJobSite = siteMeta.normalizeSite;
     var allCats = safeUnique(jobs.map(function (j) { return j.cat || 'Uncategorised'; }));
     MAINT_ANALYTICS_STATE.jobs.sites = ensureStateSelection(MAINT_ANALYTICS_STATE.jobs.sites, allSites);
     MAINT_ANALYTICS_STATE.jobs.cats = ensureStateSelection(MAINT_ANALYTICS_STATE.jobs.cats, allCats);
@@ -545,11 +597,10 @@
     if (fromEl) fromEl.value = MAINT_ANALYTICS_STATE.jobs.from || '';
     if (toEl) toEl.value = MAINT_ANALYTICS_STATE.jobs.to || '';
 
-    var selectedSites = new Set(MAINT_ANALYTICS_STATE.jobs.sites);
     var selectedCats = new Set(MAINT_ANALYTICS_STATE.jobs.cats);
     var filtered = jobs.filter(function (j) {
       var cat = j.cat || 'Uncategorised';
-      return matchesSiteSelection(j.site, selectedSites) && selectedCats.has(cat) && inMonthRange(j._month, MAINT_ANALYTICS_STATE.jobs.from, MAINT_ANALYTICS_STATE.jobs.to);
+      return matchesSiteSelection(j.site, MAINT_ANALYTICS_STATE.jobs.sites, normalizeJobSite) && selectedCats.has(cat) && inMonthRange(j._month, MAINT_ANALYTICS_STATE.jobs.from, MAINT_ANALYTICS_STATE.jobs.to);
     });
 
     if (!filtered.length) {
@@ -575,7 +626,8 @@
         }),
         backgroundColor: palette[idx % palette.length],
         borderRadius: 4,
-        stack: 'jobs',
+        categoryPercentage: 0.72,
+        barPercentage: 0.9,
       };
     });
 
@@ -594,8 +646,8 @@
         maintainAspectRatio: false,
         plugins: { legend: { display: true, position: 'top' } },
         scales: {
-          x: { stacked: true, grid: { display: false } },
-          y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#F1F5F9' } }
+          x: { stacked: false, grid: { display: false } },
+          y: { stacked: false, beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#F1F5F9' } }
         }
       }
     });
@@ -620,7 +672,9 @@
       return;
     }
 
-    var allSites = siteFilterOptions(rows.map(function (r) { return r.site; }));
+    var siteMeta = siteFilterOptions(rows.map(function (r) { return r.site; }));
+    var allSites = siteMeta.options;
+    var normalizePOSite = siteMeta.normalizeSite;
     var allCats = safeUnique(rows.map(function (r) { return r._cat; }));
     MAINT_ANALYTICS_STATE.po.sites = ensureStateSelection(MAINT_ANALYTICS_STATE.po.sites, allSites);
     MAINT_ANALYTICS_STATE.po.cats = ensureStateSelection(MAINT_ANALYTICS_STATE.po.cats, allCats);
@@ -633,10 +687,9 @@
     if (fromEl) fromEl.value = MAINT_ANALYTICS_STATE.po.from || '';
     if (toEl) toEl.value = MAINT_ANALYTICS_STATE.po.to || '';
 
-    var selectedSites = new Set(MAINT_ANALYTICS_STATE.po.sites);
     var selectedCats = new Set(MAINT_ANALYTICS_STATE.po.cats);
     var filtered = rows.filter(function (r) {
-      return matchesSiteSelection(r.site, selectedSites) && selectedCats.has(r._cat) && inMonthRange(r._month, MAINT_ANALYTICS_STATE.po.from, MAINT_ANALYTICS_STATE.po.to);
+      return matchesSiteSelection(r.site, MAINT_ANALYTICS_STATE.po.sites, normalizePOSite) && selectedCats.has(r._cat) && inMonthRange(r._month, MAINT_ANALYTICS_STATE.po.from, MAINT_ANALYTICS_STATE.po.to);
     });
 
     if (!filtered.length) {
@@ -662,7 +715,8 @@
         }),
         backgroundColor: palette[idx % palette.length],
         borderRadius: 4,
-        stack: 'cost',
+        categoryPercentage: 0.72,
+        barPercentage: 0.9,
       };
     });
 
@@ -681,8 +735,8 @@
         maintainAspectRatio: false,
         plugins: { legend: { display: true, position: 'top' } },
         scales: {
-          x: { stacked: true, grid: { display: false } },
-          y: { stacked: true, beginAtZero: true, grid: { color: '#F1F5F9' } }
+          x: { stacked: false, grid: { display: false } },
+          y: { stacked: false, beginAtZero: true, grid: { color: '#F1F5F9' } }
         }
       }
     });
