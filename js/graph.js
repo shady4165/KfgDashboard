@@ -18,7 +18,7 @@
    * Each file lives in its own named document library (library field).
    */
   const SHEETS = {
-    maintenance: { file: '02_Maintenance_Dashboard.xlsx', library: 'Maintenance', kpi: '📊 KPI Summary', data: '🔧 Jobs Register', sites: '🏢 Sites Summary', poCosts: 'MaintenancePOcost', poCostsFile: '01_Project_Management_Dashboard.xlsx', poCostsLibrary: 'Project Management', dataHeaderRow: 1, sitesHeaderRow: 1, poCostsHeaderRow: 'auto', poCostsHeaderKeywords: ['site', 'nursery', 'category', 'amount', 'date', 'po', 'vendor'] },
+    maintenance: { file: '02_Maintenance_Dashboard.xlsx', library: 'Maintenance', kpi: '📊 KPI Summary', data: '🔧 Jobs Register', sites: '🏢 Sites Summary', poCosts: 'MaintenancePOCost', poCostsFile: '02_Maintenance_Dashboard.xlsx', poCostsLibrary: 'Maintenance', dataHeaderRow: 1, sitesHeaderRow: 1, poCostsHeaderRow: 'auto', poCostsHeaderKeywords: ['site', 'nursery', 'category', 'amount', 'date', 'po', 'vendor'] },
     capex:       { file: '03_Capex_Dashboard_CEO.xlsx',     library: 'Capex',             kpi: '📊 KPI Summary', data: '📊 Nursery Budget View', dataHeaderRow: 1 },
     projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: '📊 KPI Summary', data: '📁 Active Projects', dataHeaderRow: 1 },
     procurement: { file: '04_Procurement_Dashboard.xlsx',   library: 'Procurement',       kpi: '📊 KPI Summary', data: '📋 PO Register',          dataHeaderRow: 2 },
@@ -41,6 +41,7 @@
   let _driveMap  = {};              // { libraryName: driveId }
   let _fileIdCache   = {};          // { fileName: itemId }
   let _workbookCache = {};          // { deptKey: XLSX workbook object }
+  let _workbookPromiseCache = {};   // { wbCacheKey: Promise<XLSX workbook> }
   let _dataCache     = {};          // { cacheKey: { data, timestamp } }
   let _lastFetchTime = null;
   let _refreshTimer  = null;
@@ -438,60 +439,66 @@
       var wbCacheKey = deptKey + '::wb::' + effectiveLibrary + '::' + effectiveFile;
       var wb = _workbookCache[wbCacheKey];
       if (!wb) {
-        var itemId = null;
-        var encodedFile = encodeURIComponent(effectiveFile);
+        if (!_workbookPromiseCache[wbCacheKey]) {
+          _workbookPromiseCache[wbCacheKey] = (async function () {
+            var itemId = null;
+            var encodedFile = encodeURIComponent(effectiveFile);
 
-        // 1. Try the file at the root of the library drive
-        var meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId + '/root:/' + encodedFile);
-        if (meta && meta.id) {
-          itemId = meta.id;
-        }
-
-        // 2. Try the default SharePoint "General" subfolder
-        if (!itemId) {
-          meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId + '/root:/General/' + encodedFile);
-          if (meta && meta.id) {
-            itemId = meta.id;
-          }
-        }
-
-        // 3. Search the entire drive for the file by name
-        if (!itemId) {
-          _log('Searching drive for ' + effectiveFile);
-          var sr = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
-            "/root/search(q='" + effectiveFile.replace(/'/g, "''") + "')");
-          if (sr && sr.value && sr.value.length > 0) {
-            var hit = sr.value.find(function (i) { return i.name === effectiveFile; }) || sr.value[0];
-            if (hit && hit.id) {
-              itemId = hit.id;
-              _log('Found ' + effectiveFile + ' via search at: ' +
-                (hit.parentReference ? hit.parentReference.path : 'unknown path'));
+            var meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId + '/root:/' + encodedFile);
+            if (meta && meta.id) {
+              itemId = meta.id;
             }
-          }
+
+            if (!itemId) {
+              meta = await graphFetch(GRAPH_BASE + '/drives/' + driveId + '/root:/General/' + encodedFile);
+              if (meta && meta.id) {
+                itemId = meta.id;
+              }
+            }
+
+            if (!itemId) {
+              _log('Searching drive for ' + effectiveFile);
+              var sr = await graphFetch(GRAPH_BASE + '/drives/' + driveId +
+                "/root/search(q='" + effectiveFile.replace(/'/g, "''") + "')");
+              if (sr && sr.value && sr.value.length > 0) {
+                var hit = sr.value.find(function (i) { return i.name === effectiveFile; }) || sr.value[0];
+                if (hit && hit.id) {
+                  itemId = hit.id;
+                  _log('Found ' + effectiveFile + ' via search at: ' +
+                    (hit.parentReference ? hit.parentReference.path : 'unknown path'));
+                }
+              }
+            }
+
+            if (!itemId) {
+              throw new Error('Could not resolve file ID for ' + effectiveFile);
+            }
+
+            var arrayBuffer = await graphFetchBinary(
+              GRAPH_BASE + '/drives/' + driveId + '/items/' + itemId + '/content'
+            );
+            if (!arrayBuffer) {
+              throw new Error('Download failed for ' + effectiveFile);
+            }
+
+            if (!window.XLSX) {
+              throw new Error('SheetJS library not loaded');
+            }
+
+            var parsed = window.XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+            _workbookCache[wbCacheKey] = parsed;
+            _log('Downloaded and parsed ' + effectiveFile + ' — sheets: ' + parsed.SheetNames.join(', '));
+            return parsed;
+          })();
         }
 
-        if (!itemId) {
-          _warn('Could not resolve file ID for ' + effectiveFile);
+        try {
+          wb = await _workbookPromiseCache[wbCacheKey];
+        } catch (wbErr) {
+          delete _workbookPromiseCache[wbCacheKey];
+          _warn(wbErr.message || wbErr);
           return null;
         }
-
-        // Download via /content endpoint using authenticated fetch (no @downloadUrl needed)
-        var arrayBuffer = await graphFetchBinary(
-          GRAPH_BASE + '/drives/' + driveId + '/items/' + itemId + '/content'
-        );
-        if (!arrayBuffer) {
-          _warn('Download failed for ' + effectiveFile);
-          return null;
-        }
-
-        if (!window.XLSX) {
-          _warn('SheetJS library not loaded');
-          return null;
-        }
-
-        wb = window.XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
-        _workbookCache[wbCacheKey] = wb;
-        _log('Downloaded and parsed ' + effectiveFile + ' — sheets: ' + wb.SheetNames.join(', '));
       }
 
       // Extract the requested worksheet — match by normalised name so emoji
@@ -504,7 +511,7 @@
       });
       var ws = actualSheetName ? wb.Sheets[actualSheetName] : null;
       if (!ws) {
-        _warn('Sheet "' + sheetName + '" not found in ' + dept.file +
+        _warn('Sheet "' + sheetName + '" not found in ' + effectiveFile +
               '. Available: ' + wb.SheetNames.join(', '));
         return null;
       }
@@ -605,6 +612,7 @@
     _log('Refreshing data — clearing cache.');
     _dataCache = {};
     _workbookCache = {};
+    _workbookPromiseCache = {};
     return fetchAllDepartments();
   }
 

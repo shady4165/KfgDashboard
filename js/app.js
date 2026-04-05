@@ -178,6 +178,8 @@
     setProgress(40, 'Fetching SharePoint data...');
 
     // Initialize Graph API and fetch data
+    let liveLoaded = false;
+
     if (window.KFGGraph) {
       window.KFGGraph.init(APP_CONFIG.siteUrl);
 
@@ -188,6 +190,7 @@
             ? window.KFGTransform.processLiveData(liveData)
             : liveData;
           window.KFGDashboard.setData(transformed);
+          liveLoaded = true;
         }
       } catch (err) {
         console.warn('Could not fetch live data, falling back to demo:', err);
@@ -199,7 +202,7 @@
 
     setProgress(80, 'Building dashboard...');
 
-    if (window.KFGDashboard) {
+    if (window.KFGDashboard && !liveLoaded) {
       window.KFGDashboard.init();
       window.KFGDashboard.buildAll();
     }

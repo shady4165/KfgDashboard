@@ -515,7 +515,7 @@
       return;
     }
 
-    var allSites = safeUnique(jobs.map(function (j) { return j.site; }));
+    var allSites = siteFilterOptions(jobs.map(function (j) { return j.site; }));
     var allCats = safeUnique(jobs.map(function (j) { return j.cat || 'Uncategorised'; }));
     MAINT_ANALYTICS_STATE.jobs.sites = ensureStateSelection(MAINT_ANALYTICS_STATE.jobs.sites, allSites);
     MAINT_ANALYTICS_STATE.jobs.cats = ensureStateSelection(MAINT_ANALYTICS_STATE.jobs.cats, allCats);
@@ -532,7 +532,7 @@
     var selectedCats = new Set(MAINT_ANALYTICS_STATE.jobs.cats);
     var filtered = jobs.filter(function (j) {
       var cat = j.cat || 'Uncategorised';
-      return selectedSites.has(j.site) && selectedCats.has(cat) && inMonthRange(j._month, MAINT_ANALYTICS_STATE.jobs.from, MAINT_ANALYTICS_STATE.jobs.to);
+      return matchesSiteSelection(j.site, selectedSites) && selectedCats.has(cat) && inMonthRange(j._month, MAINT_ANALYTICS_STATE.jobs.from, MAINT_ANALYTICS_STATE.jobs.to);
     });
 
     if (!filtered.length) {
@@ -603,7 +603,7 @@
       return;
     }
 
-    var allSites = safeUnique(rows.map(function (r) { return r.site; }));
+    var allSites = siteFilterOptions(rows.map(function (r) { return r.site; }));
     var allCats = safeUnique(rows.map(function (r) { return r._cat; }));
     MAINT_ANALYTICS_STATE.po.sites = ensureStateSelection(MAINT_ANALYTICS_STATE.po.sites, allSites);
     MAINT_ANALYTICS_STATE.po.cats = ensureStateSelection(MAINT_ANALYTICS_STATE.po.cats, allCats);
@@ -619,7 +619,7 @@
     var selectedSites = new Set(MAINT_ANALYTICS_STATE.po.sites);
     var selectedCats = new Set(MAINT_ANALYTICS_STATE.po.cats);
     var filtered = rows.filter(function (r) {
-      return selectedSites.has(r.site) && selectedCats.has(r._cat) && inMonthRange(r._month, MAINT_ANALYTICS_STATE.po.from, MAINT_ANALYTICS_STATE.po.to);
+      return matchesSiteSelection(r.site, selectedSites) && selectedCats.has(r._cat) && inMonthRange(r._month, MAINT_ANALYTICS_STATE.po.from, MAINT_ANALYTICS_STATE.po.to);
     });
 
     if (!filtered.length) {
