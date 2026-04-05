@@ -211,69 +211,31 @@
     if (!raw) return null;
     var kpiRows  = raw.kpi  || [];
     var dataRows = raw.data || [];
-    var categoryRows = raw.categories || [];
-    var projectRows = raw.projects || [];
 
     var nurseries = dataRows.map(function (r) {
       var name = col(r, 'Nursery', 'Site', 'Branch', 'Name', 'Location') || '';
       if (!name) return null;
       var nameStr = String(name);
-      var nm = nameStr.toLowerCase().trim();
-      var isTotal = nm.includes('total') && !nm.includes('grand');
-      var isGrand = nm.includes('29+ho') || nm === 'kfg (29+ho)' || nm.includes('grand total');
+      var isTotal = nameStr.toLowerCase().includes('total') && !nameStr.toLowerCase().includes('grand');
+      var isGrand = nameStr.toLowerCase().includes('grand') || nameStr.toLowerCase().includes('kfg');
       return {
         name:     nameStr,
         ebitda:   num(col(r, 'EBITDA', 'Ebitda (AED)', 'Annual EBITDA')),
         budget:   num(col(r, 'Budget', 'Capex Budget', 'Annual Budget', 'Allocated Budget')),
-        utilised: num(col(r, 'Utilised', 'Spent', 'Actual', 'Used', 'Actual Spend', 'Utilization')),
-        balance:  num(col(r, 'Balance', 'Remaining', 'Balance (AED)', 'Net Balance', 'Balance Available Value')),
-        balPct:   num(col(r, 'Bal%', 'Balance %', '% Remaining', 'Bal %', '% Balance', 'Balance Available %')),
-        request:  num(col(r, 'Request', 'Cap Request', 'Additional', 'Pending Request', 'Request for Approval')),
+        utilised: num(col(r, 'Utilised', 'Spent', 'Actual', 'Used', 'Actual Spend')),
+        balance:  num(col(r, 'Balance', 'Remaining', 'Balance (AED)', 'Net Balance')),
+        balPct:   num(col(r, 'Bal%', 'Balance %', '% Remaining', 'Bal %', '% Balance')),
+        request:  num(col(r, 'Request', 'Cap Request', 'Additional', 'Pending Request')),
         balAfter: num(col(r, 'Bal After', 'Balance After', 'Net After Request')),
         isTotal:  isTotal,
         isGrand:  isGrand,
       };
     }).filter(function (n) { return n !== null && n.name; });
 
-    var categories = categoryRows.map(function (r) {
-      return {
-        category: String(col(r, 'Category', 'Capex Category') || '').trim(),
-        budget: num(col(r, 'Annual Budget (AED)', 'Budget', 'Budget (AED)')),
-        spent: num(col(r, 'Spent YTD (AED)', 'Spent', 'Spent (AED)')),
-        committed: num(col(r, 'Committed (AED)', 'Committed')),
-        remaining: num(col(r, 'Remaining (AED)', 'Remaining')),
-        pct: num(col(r, '% Utilised', 'Utilised %', 'Pct Utilised')),
-        rag: col(r, 'Final RAG', 'RAG', 'Auto RAG') || ''
-      };
-    }).filter(function (r) { return r.category; });
-
-    var projects = projectRows.map(function (r, idx) {
-      return {
-        id: col(r, 'Project ID', 'ID', 'Ref') || ('CPX-' + String(idx + 1).padStart(3, '0')),
-        name: col(r, 'Project Name', 'Name', 'Title') || '',
-        nursery: col(r, 'Nursery', 'Site', 'Branch') || '',
-        category: col(r, 'Category', 'Capex Category') || '',
-        budget: num(col(r, 'Budget (AED)', 'Budget')),
-        spent: num(col(r, 'Spent (AED)', 'Spent')),
-        committed: num(col(r, 'Committed (AED)', 'Committed')),
-        remaining: num(col(r, 'Remaining (AED)', 'Remaining')),
-        status: col(r, 'Status') || '',
-        approvalDate: fmtDate(col(r, 'Approval Date', 'Approved Date', 'Date'))
-      };
-    }).filter(function (r) { return r.id || r.nursery || r.category; });
-
     var nonTotals = nurseries.filter(function (n) { return !n.isTotal && !n.isGrand; });
-    var grandRow = nurseries.find(function (n) {
-      var nm = String(n.name || '').toLowerCase().trim();
-      return nm.includes('29+ho') || nm === 'kfg (29+ho)' || nm.includes('grand total');
-    });
-    if (!grandRow) {
-      grandRow = nurseries.find(function (n) {
-        var nm = String(n.name || '').toLowerCase().trim();
-        return nm.includes('kfg') && !nm.includes('llc');
-      });
-    }
+    var grandRow  = nurseries.find(function (n) { return n.isGrand; });
 
+    // KPIs — KPI sheet first, then derive from data
     var totalBudget   = num(kpiVal(kpiRows, 'total budget') || kpiVal(kpiRows, 'budget'));
     var utilised      = num(kpiVal(kpiRows, 'utilised')     || kpiVal(kpiRows, 'spent'));
     var remaining     = num(kpiVal(kpiRows, 'remaining')    || kpiVal(kpiRows, 'balance'));
@@ -289,6 +251,7 @@
 
     var rag = ragKpi ? String(ragKpi) : (negativeSites > 3 ? 'Red' : negativeSites > 0 ? 'Amber' : 'Green');
 
+    // Regions — group by name prefix
     var regionMap = {};
     nonTotals.forEach(function (n) {
       var prefix = n.name.split('-')[0].split(' ')[0] || 'Other';
@@ -316,8 +279,6 @@
       },
       nurseries: nurseries.length ? nurseries : [],
       regions:   regions,
-      categories: categories,
-      projects: projects,
     };
   }
 
@@ -376,7 +337,6 @@
     if (!raw) return null;
     var kpiRows  = raw.kpi  || [];
     var dataRows = raw.data || [];
-    var supplierRows = raw.suppliers || [];
 
     var refLabel = 'PO Number';
     if (dataRows.length) {
@@ -403,26 +363,10 @@
         value:     num(col(r, 'Value (£)', 'Value (AED)', 'Value', 'Amount', 'Total Value', 'PO Value')),
         status:    col(r, 'Status', 'PO Status', 'Approval Status') || '',
         raisedDate: fmtDate(raisedRaw),
-        raisedDateObj: parseDateValue(raisedRaw),
         date:      fmtDate(raisedRaw),
         delivery:  fmtDate(col(r, 'Actual Delivery', 'Expected Delivery', 'Delivery Date', 'Due Date')),
       };
     }).filter(function (p) { return p.ref || p.supplier || p.nursery; });
-
-    var suppliers = supplierRows.map(function (r) {
-      var expRaw = col(r, 'Contract Exp.', 'Contract Expiry', 'Expiry Date', 'Expiry');
-      return {
-        supplier: col(r, 'Supplier Name', 'Supplier', 'Vendor') || '',
-        category: col(r, 'Category', 'Type') || '',
-        contractExp: fmtDate(expRaw),
-        contractExpObj: parseDateValue(expRaw),
-        contact: col(r, 'Contact', 'Contact Person', 'Email', 'Phone') || '',
-        annualSpend: num(col(r, 'Annual Spend (£)', 'Annual Spend (AED)', 'Annual Spend', 'Spend')),
-        status: col(r, 'Status') || '',
-        insuranceValid: col(r, 'Insurance Valid', 'Insurance', 'Insurance Status') || '',
-        notes: col(r, 'Notes', 'Remarks') || ''
-      };
-    }).filter(function (s) { return s.supplier || s.category; });
 
     var activePOs = pos.filter(function (p) {
       var s = (p.status || '').toLowerCase();
@@ -456,8 +400,7 @@
         rag:       rag,
       },
       refLabel: refLabel,
-      pos: pos,
-      suppliers: suppliers,
+      pos:    pos,
       bySt:   Object.keys(bySt).length   ? bySt   : { 'N/A': 1 },
       byDept: Object.keys(byDept).length ? byDept : { 'General': spendYTD },
     };
@@ -552,8 +495,10 @@
     if (!raw) return null;
     var kpiRows  = raw.kpi  || [];
     var dataRows = raw.data || [];
-    var milestoneRows = raw.milestones || [];
 
+    // Deal Pipeline columns: Deal ID, Target Name, Deal Type, Est. Value (AED),
+    // Stage, Lead, Branches, Multiplier, EBITDA, Number of Kids,
+    // Start Date, Target Close, Probability %, Key Risk
     var deals = dataRows.map(function (r, idx) {
       var prob    = col(r, 'Probability %', 'Probability', 'Prob %', 'Prob') || 0;
       var probNum = num(String(prob).replace('%', ''));
@@ -570,25 +515,6 @@
         probNum: probNum,
       };
     }).filter(function (d) { return d.stage; });
-
-    var dealMap = {};
-    deals.forEach(function (d) { dealMap[d.id] = d.target; });
-
-    var milestones = milestoneRows.map(function (r) {
-      var dueRaw = col(r, 'Due Date', 'Target Date', 'Date');
-      var dealId = col(r, 'Deal ID', 'Project ID', 'ID', 'Ref') || '';
-      return {
-        dealId: dealId,
-        target: dealMap[dealId] || '',
-        milestone: col(r, 'Milestone', 'Task', 'Action') || '',
-        dueDate: fmtDate(dueRaw),
-        dueDateObj: parseDateValue(dueRaw),
-        owner: col(r, 'Owner', 'Lead', 'Responsible') || '',
-        status: col(r, 'Status') || '',
-        priority: col(r, 'Priority') || '',
-        notes: col(r, 'Notes', 'Remarks') || ''
-      };
-    }).filter(function (m) { return m.dealId || m.milestone; });
 
     var pipeline     = deals.length;
     var dueDiligence = deals.filter(function (d) {
@@ -622,7 +548,6 @@
         rag:           rag,
       },
       deals: deals,
-      milestones: milestones,
       bySt:  Object.keys(bySt).length  ? bySt  : { 'N/A': 0 },
       byVal: Object.keys(byVal).length ? byVal : { 'N/A': 0 },
     };
@@ -698,7 +623,6 @@
     if (!raw) return null;
     var kpiRows  = raw.kpi  || [];
     var dataRows = raw.data || [];
-    var actionRows = raw.actions || [];
 
     var projects = dataRows.map(function (r, idx) {
       var rag = col(r, 'RAG', 'RAG Status', 'Overall RAG', 'Status') || 'Amber';
@@ -713,28 +637,6 @@
         rag:      rag,
       };
     }).filter(function (p) { return p.name; });
-
-    var projectMap = {};
-    projects.forEach(function (p) { projectMap[p.id] = p.name; });
-
-    var actions = actionRows.map(function (r) {
-      var raisedRaw = col(r, 'Raised Date', 'Date Raised', 'Raised');
-      var dueRaw = col(r, 'Due Date', 'Target Date', 'Date');
-      var pid = col(r, 'Project ID', 'ID', 'Ref') || '';
-      return {
-        projectId: pid,
-        project: projectMap[pid] || '',
-        action: col(r, 'Action / Decision', 'Action', 'Decision', 'Task') || '',
-        owner: col(r, 'Owner', 'Responsible', 'Lead') || '',
-        raisedDate: fmtDate(raisedRaw),
-        raisedDateObj: parseDateValue(raisedRaw),
-        dueDate: fmtDate(dueRaw),
-        dueDateObj: parseDateValue(dueRaw),
-        status: col(r, 'Status') || '',
-        priority: col(r, 'Priority') || '',
-        notes: col(r, 'Notes', 'Remarks') || ''
-      };
-    }).filter(function (a) { return a.projectId || a.action; });
 
     var active  = projects.length;
     var onTrack = projects.filter(function (p) {
@@ -762,7 +664,21 @@
     return {
       kpis: { active: active, onTrack: onTrack, atRisk: atRisk, overdue: overdue, rag: rag },
       projects: projects,
-      actions: actions,
+      actions: (raw.actions || []).map(function (r, idx) {
+        var projectId = col(r, 'Project ID', 'ID', 'Project Ref', 'Ref') || '';
+        var match = projects.find(function (p) { return p.id === projectId; });
+        return {
+          id: 'ACT-' + String(idx + 1).padStart(3, '0'),
+          projectId: projectId,
+          project: match ? match.name : projectId,
+          action: col(r, 'Action / Decision', 'Action', 'Decision', 'Task') || '',
+          owner: col(r, 'Owner', 'Responsible', 'Lead') || '',
+          raisedDate: col(r, 'Raised Date', 'Date Raised', 'Created Date') || '',
+          dueDate: col(r, 'Due Date', 'Target Date', 'Due') || '',
+          status: col(r, 'Status') || '',
+          priority: col(r, 'Priority') || ''
+        };
+      }).filter(function (a) { return a.project || a.action; }),
       byCat: Object.keys(byCat).length ? byCat : { 'General': active },
       bySt:  Object.keys(bySt).length  ? bySt  : { 'Amber': active },
     };

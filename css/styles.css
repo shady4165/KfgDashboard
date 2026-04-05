@@ -2077,8 +2077,7 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   margin-bottom: 6px;
 }
 .analytics-field select,
-.analytics-field input[type="month"],
-.analytics-field input[type="date"] {
+.analytics-field input[type="month"] {
   width: 100%;
   border: 1px solid var(--border2);
   border-radius: 10px;
@@ -2090,8 +2089,7 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   min-height: 150px;
 }
 .analytics-field select:focus,
-.analytics-field input[type="month"]:focus,
-.analytics-field input[type="date"]:focus {
+.analytics-field input[type="month"]:focus {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
@@ -2099,6 +2097,9 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   display: flex;
   align-items: flex-end;
   height: 100%;
+}
+.analytics-filters--compact {
+  grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(0, 1fr)) auto;
 }
 .analytics-summary {
   display: grid;
