@@ -489,7 +489,7 @@
 
     return {
       kpis: {
-        spendYTD: spendK !== null ? num(spendK) : spendYTD,
+        spendYTD: (spendK && num(spendK)) || spendYTD,
         rag:      rag,
       },
       refLabel: refLabel,

@@ -874,36 +874,20 @@
 
     var selectedSites = new Set(CAPEX_CATEGORY_STATE.sites || []);
     var selectedCats = new Set(CAPEX_CATEGORY_STATE.cats || []);
-    var rows = [];
-    var usingNurseryFilter = selectedSites.size && selectedSites.size !== allSites.length;
-    if (usingNurseryFilter) {
-      var grouped = {};
-      projectRows.filter(function (r) {
-        return matchesSiteSelection(r.nursery, selectedSites) && (!selectedCats.size || selectedCats.has(r.category));
-      }).forEach(function (r) {
-        var cat = r.category || 'Uncategorised';
-        if (!grouped[cat]) grouped[cat] = { category: cat, budget: 0, spent: 0, committed: 0, remaining: 0, pct: 0, rag: '' };
-        grouped[cat].budget += Number(r.budget) || 0;
-        grouped[cat].spent += Number(r.spent) || 0;
-        grouped[cat].committed += Number(r.committed) || 0;
-        grouped[cat].remaining += Number(r.remaining) || 0;
-      });
-      rows = Object.keys(grouped).sort().map(function (k) {
-        var row = grouped[k];
-        row.pct = row.budget ? ((row.spent + row.committed) / row.budget * 100) : 0;
-        row.rag = row.remaining < 0 ? 'Red' : row.pct > 80 ? 'Amber' : 'Green';
-        return row;
-      });
-    } else {
-      rows = categoryRows.filter(function (r) { return !selectedCats.size || selectedCats.has(r.category); });
-    }
+
+    // Always use categoryRows for all data — projectRows have no nursery/spent data in live mode
+    var rows = categoryRows.filter(function (r) {
+      var siteMatch = !selectedSites.size || matchesSiteSelection(r.nursery, selectedSites);
+      var catMatch  = !selectedCats.size  || selectedCats.has(r.category);
+      return siteMatch && catMatch;
+    });
 
     renderAnalyticsSummary('capex-cat-summary', [
       { label: 'Tasks Completed', value: rows.length },
       { label: 'Spent', value: faed(rows.reduce(function (s, r) { return s + (Number(r.spent) || 0); }, 0)) },
     ]);
 
-    // Chart: Total Spent per Category — with data labels on top of bars
+    // Chart: Total Spent per Category — filtered by both nursery + category selection
     const spentByCat = {};
     rows.forEach(function (r) { if (r.category) spentByCat[r.category] = (spentByCat[r.category] || 0) + (Number(r.spent) || 0); });
     const catEntries = Object.entries(spentByCat).sort(function (a, b) { return b[1] - a[1]; });
@@ -916,11 +900,9 @@
       options: noGridOpts({ plugins: { legend: { display: false }, kfgBarLabels: { enabled: true } } }),
     });
 
-    // Chart: Total Spent per Nursery — always from projectRows so nursery filter works reliably
-    const filteredForNursery = projectRows.filter(function (r) {
-      var siteMatch = !usingNurseryFilter || matchesSiteSelection(r.nursery, selectedSites);
-      var catMatch  = !selectedCats.size   || selectedCats.has(r.category);
-      return siteMatch && catMatch;
+    // Chart: Total Spent per Nursery — filter by category only, always show all nurseries
+    const filteredForNursery = categoryRows.filter(function (r) {
+      return !selectedCats.size || selectedCats.has(r.category);
     });
     const spentByNursery = {};
     filteredForNursery.forEach(function (r) {
