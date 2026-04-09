@@ -151,7 +151,6 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-home','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-home','summary')" type="button">Department Summary</button>
-          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-home','comparison')" type="button">Comparison</button>
         </div>
         <div class="tab-pane active" id="pg-home-overview">
           <div class="grid-2">
@@ -176,37 +175,6 @@
                 <thead><tr><th scope="col">Department</th><th scope="col">Headline Metric</th><th scope="col">Value</th><th scope="col">Status</th></tr></thead>
                 <tbody id="t-home"></tbody>
               </table>
-            </div>
-          </div>
-        </div>
-        <div class="tab-pane" id="pg-home-comparison">
-          <div class="grid-2">
-            <div class="card" data-chart-id="c-comp-items">
-              <h3 class="card-title">Open Items by Department</h3>
-              <div class="card-sub">Cross-department comparison</div>
-              <div class="chart-wrap" style="height:260px"><canvas id="c-comp-items" aria-label="Open items comparison chart"></canvas></div>
-            </div>
-            <div class="card">
-              <h3 class="card-title">Department Metrics</h3>
-              <div class="card-sub">Key indicators across departments</div>
-              <div style="padding: 16px; font-size: 13px; line-height: 1.8;">
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
-                  <span><strong>Maintenance:</strong></span>
-                  <span id="comp-maint" style="font-weight: 600;">—</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
-                  <span><strong>Capex:</strong></span>
-                  <span id="comp-capex" style="font-weight: 600;">—</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
-                  <span><strong>Projects:</strong></span>
-                  <span id="comp-proj" style="font-weight: 600;">—</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-                  <span><strong>Procurement:</strong></span>
-                  <span id="comp-proc" style="font-weight: 600;">—</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>

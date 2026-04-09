@@ -1849,8 +1849,8 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
 .sidebar {
   width: 240px;
   min-width: 240px;
-  background: #fff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--card);
+  border-right: 1px solid var(--border2);
   position: fixed;
   top: 0;
   left: 0;
@@ -1858,7 +1858,7 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   display: flex;
   flex-direction: column;
   z-index: 820;
-  overflow-y: auto;
+  overflow: hidden;
   transition: width 0.3s ease, min-width 0.3s ease;
 }
 
@@ -1867,8 +1867,10 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   align-items: center;
   gap: 10px;
   padding: 18px 16px 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border2);
   flex-shrink: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 .sidebar-logo { font-size: 24px; line-height: 1; }
 .sidebar-title {
@@ -1901,7 +1903,7 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   padding: 9px 12px 9px 14px;
   font-size: 13.5px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--muted);
   border-radius: 8px;
   text-align: left;
   border-left: 3px solid transparent;
@@ -1914,13 +1916,14 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   transition: background 0.18s, color 0.18s, border-color 0.18s;
   min-height: 38px;
   white-space: nowrap;
+  position: relative;
 }
 .sidebar-nav .nav-item:hover {
-  background: #f3f4f6;
+  background: var(--bg2);
   color: var(--navy);
 }
 .sidebar-nav .nav-item.active {
-  background: #eff6ff;
+  background: rgba(37,99,235,0.10);
   color: var(--blue);
   font-weight: 600;
   border-left-color: var(--blue);
@@ -1949,7 +1952,7 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   justify-content: center;
 }
 .sidebar-toggle:hover {
-  background: #f3f4f6;
+  background: var(--bg2);
   color: var(--navy);
 }
 .sidebar-toggle:focus-visible {
@@ -1966,8 +1969,12 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   flex-direction: column;
   gap: 8px;
   padding: 16px 8px;
+  justify-content: center;
 }
-.sidebar.collapsed .sidebar-brand > div:nth-child(2) {
+/* Hide the title/subtitle text when collapsed */
+.sidebar.collapsed .sidebar-brand .sidebar-title,
+.sidebar.collapsed .sidebar-brand .sidebar-subtitle,
+.sidebar.collapsed .sidebar-brand > div:not(.sidebar-logo) {
   display: none;
 }
 .sidebar.collapsed .sidebar-toggle {
@@ -1981,7 +1988,11 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   gap: 0;
   padding: 9px 8px;
   font-size: 20px;
-  min-width: 44px;
+  min-width: 0;
+  width: 44px;
+  overflow: hidden;
+  letter-spacing: -0.05em;
+  position: relative;
 }
 .sidebar.collapsed .sidebar-nav .nav-item:hover::after,
 .sidebar.collapsed .sidebar-nav .nav-item.active::after {
@@ -2025,19 +2036,13 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
 }
 
 /* Adjust main-area when sidebar is collapsed */
-.main-area {
-  transition: margin-left 0.3s ease;
-}
 #app.sidebar-collapsed .main-area {
   margin-left: 64px;
-}
-#app:not(.sidebar-collapsed) .main-area {
-  margin-left: 240px;
 }
 
 .sidebar-footer {
   padding: 14px 14px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border2);
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -2071,13 +2076,13 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1px solid var(--border2);
+  background: var(--bg2);
   color: var(--muted);
   transition: background 0.18s, color 0.18s;
   min-height: 34px;
 }
-.sidebar-btn:hover { background: #e5e7eb; color: var(--navy); }
+.sidebar-btn:hover { background: var(--bg); color: var(--navy); }
 .sidebar-btn-signout { color: var(--red); border-color: rgba(239,68,68,0.2); }
 .sidebar-btn-signout:hover { background: rgba(239,68,68,0.07); color: var(--red); }
 .sidebar-btn:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
@@ -2091,6 +2096,7 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   flex-direction: column;
   min-height: 100vh;
   width: 100%;
+  transition: margin-left 0.3s ease;
 }
 
 /* --- Slim topbar (now inside .main-area) --- */

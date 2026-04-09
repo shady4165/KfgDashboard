@@ -1862,50 +1862,132 @@
     }
 
     const q = query.toLowerCase();
-    const results = {};
     const data = DATA || DEMO;
+    const groups = [];
 
-    // Search maintenance jobs
-    if (data.maintenance && data.maintenance.jobs) {
-      results.jobs = data.maintenance.jobs.filter(j =>
-        j.id.toLowerCase().includes(q) ||
-        j.desc.toLowerCase().includes(q) ||
-        j.site.toLowerCase().includes(q)
-      ).slice(0, 10).map(j => ({ type: 'Job', text: j.id + ': ' + j.desc, page: 'maintenance', obj: j }));
+    function hl(text) {
+      if (!text) return '';
+      const idx = text.toLowerCase().indexOf(q);
+      if (idx < 0) return text;
+      return text.slice(0, idx) + '<mark style="background:var(--gold);color:#000;border-radius:2px;">' + text.slice(idx, idx + q.length) + '</mark>' + text.slice(idx + q.length);
     }
 
-    // Search projects
+    // Maintenance jobs
+    if (data.maintenance && data.maintenance.jobs) {
+      const hits = data.maintenance.jobs.filter(j =>
+        (j.id || '').toLowerCase().includes(q) ||
+        (j.desc || '').toLowerCase().includes(q) ||
+        (j.site || '').toLowerCase().includes(q) ||
+        (j.cat || '').toLowerCase().includes(q)
+      ).slice(0, 8);
+      if (hits.length) groups.push({ label: '🔧 Maintenance Jobs', items: hits.map(j => ({ text: hl(j.id) + ' — ' + hl(j.desc) + ' <span style="opacity:.6;font-size:11px;">(' + hl(j.site) + ')</span>', page: 'maintenance' })) });
+    }
+
+    // Projects
     if (data.projects && data.projects.list) {
-      results.projects = data.projects.list.filter(p =>
+      const hits = data.projects.list.filter(p =>
         (p.name || '').toLowerCase().includes(q) ||
-        (p.status || '').toLowerCase().includes(q)
-      ).slice(0, 10).map(p => ({ type: 'Project', text: p.name, page: 'projects', obj: p }));
+        (p.status || '').toLowerCase().includes(q) ||
+        (p.pm || '').toLowerCase().includes(q) ||
+        (p.site || '').toLowerCase().includes(q)
+      ).slice(0, 8);
+      if (hits.length) groups.push({ label: '🏗️ Projects', items: hits.map(p => ({ text: hl(p.name) + ' <span style="opacity:.6;font-size:11px;">(' + (p.status || '') + ')</span>', page: 'projects' })) });
+    }
+
+    // Greenfield sites
+    if (data.greenfield && data.greenfield.sites) {
+      const hits = data.greenfield.sites.filter(s =>
+        (s.name || '').toLowerCase().includes(q) ||
+        (s.city || '').toLowerCase().includes(q) ||
+        (s.brand || '').toLowerCase().includes(q) ||
+        (s.status || '').toLowerCase().includes(q)
+      ).slice(0, 6);
+      if (hits.length) groups.push({ label: '🌱 Greenfield Sites', items: hits.map(s => ({ text: hl(s.name) + ' <span style="opacity:.6;font-size:11px;">(' + hl(s.city) + ' · ' + (s.status || '') + ')</span>', page: 'greenfield' })) });
+    }
+
+    // Procurement POs
+    if (data.procurement && data.procurement.pos) {
+      const hits = data.procurement.pos.filter(p =>
+        (p.po || '').toLowerCase().includes(q) ||
+        (p.supplier || '').toLowerCase().includes(q) ||
+        (p.desc || '').toLowerCase().includes(q) ||
+        (p.dept || '').toLowerCase().includes(q)
+      ).slice(0, 6);
+      if (hits.length) groups.push({ label: '🛒 Procurement POs', items: hits.map(p => ({ text: hl(p.po) + ' — ' + hl(p.supplier) + ' <span style="opacity:.6;font-size:11px;">(' + hl(p.desc) + ')</span>', page: 'procurement' })) });
+    }
+
+    // Suppliers
+    if (data.procurement && data.procurement.suppliers) {
+      const hits = data.procurement.suppliers.filter(s =>
+        (s.supplier || '').toLowerCase().includes(q) ||
+        (s.category || '').toLowerCase().includes(q)
+      ).slice(0, 6);
+      if (hits.length) groups.push({ label: '🤝 Suppliers', items: hits.map(s => ({ text: hl(s.supplier) + ' <span style="opacity:.6;font-size:11px;">(' + hl(s.category) + ')</span>', page: 'procurement' })) });
+    }
+
+    // IT Tickets
+    if (data.it && data.it.tickets) {
+      const hits = data.it.tickets.filter(t =>
+        (t.id || '').toLowerCase().includes(q) ||
+        (t.desc || '').toLowerCase().includes(q) ||
+        (t.site || '').toLowerCase().includes(q) ||
+        (t.cat || '').toLowerCase().includes(q)
+      ).slice(0, 6);
+      if (hits.length) groups.push({ label: '💻 IT Tickets', items: hits.map(t => ({ text: hl(t.id) + ' — ' + hl(t.desc) + ' <span style="opacity:.6;font-size:11px;">(' + hl(t.site) + ')</span>', page: 'it' })) });
+    }
+
+    // M&A Deals
+    if (data.ma && data.ma.deals) {
+      const hits = data.ma.deals.filter(d =>
+        (d.id || '').toLowerCase().includes(q) ||
+        (d.target || '').toLowerCase().includes(q) ||
+        (d.type || '').toLowerCase().includes(q) ||
+        (d.stage || '').toLowerCase().includes(q)
+      ).slice(0, 6);
+      if (hits.length) groups.push({ label: '🤝 M&A Deals', items: hits.map(d => ({ text: hl(d.id) + ' — ' + hl(d.target) + ' <span style="opacity:.6;font-size:11px;">(' + hl(d.stage) + ')</span>', page: 'ma' })) });
+    }
+
+    // Other Projects
+    if (data.other && data.other.projects) {
+      const hits = data.other.projects.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.cat || '').toLowerCase().includes(q) ||
+        (p.owner || '').toLowerCase().includes(q)
+      ).slice(0, 6);
+      if (hits.length) groups.push({ label: '📋 Other Projects', items: hits.map(p => ({ text: hl(p.name) + ' <span style="opacity:.6;font-size:11px;">(' + hl(p.cat) + ')</span>', page: 'other' })) });
+    }
+
+    // Capex nurseries
+    if (data.capex && data.capex.nurseries) {
+      const hits = data.capex.nurseries.filter(n =>
+        (n.name || '').toLowerCase().includes(q) ||
+        (n.city || '').toLowerCase().includes(q)
+      ).slice(0, 6);
+      if (hits.length) groups.push({ label: '💰 Capex Nurseries', items: hits.map(n => ({ text: hl(n.name) + ' <span style="opacity:.6;font-size:11px;">(' + (n.city || '') + ')</span>', page: 'capex' })) });
     }
 
     // Build HTML
     let html = '';
-    if (results.jobs && results.jobs.length > 0) {
-      html += '<div class="search-result-group">Jobs</div>';
-      results.jobs.forEach(r => {
-        html += '<div class="search-result-item" onclick="goToResult(\'' + r.page + '\', \'' + (r.obj.id || '') + '\')">' + r.text + '</div>';
+    let totalResults = 0;
+    groups.forEach(g => {
+      html += '<div class="search-result-group">' + g.label + '</div>';
+      g.items.forEach(item => {
+        totalResults++;
+        html += '<div class="search-result-item" onclick="window.goToResult(\'' + item.page + '\')">' + item.text + '</div>';
       });
-    }
-    if (results.projects && results.projects.length > 0) {
-      html += '<div class="search-result-group">Projects</div>';
-      results.projects.forEach(r => {
-        html += '<div class="search-result-item" onclick="go(\'' + r.page + '\')">' + r.text + '</div>';
-      });
-    }
+    });
 
     if (!html) {
-      html = '<div class="search-result-item" style="color: var(--muted);">No results found</div>';
+      html = '<div class="search-result-item" style="color:var(--muted);">No results found for "<strong>' + query + '</strong>"</div>';
+    } else {
+      html = '<div style="padding:6px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);">' + totalResults + ' result' + (totalResults !== 1 ? 's' : '') + ' for "<strong>' + query + '</strong>"</div>' + html;
     }
 
     resultsDiv.innerHTML = html;
     resultsDiv.style.display = 'block';
   };
 
-  window.goToResult = function(page, itemId) {
+  window.goToResult = function(page) {
     go(page);
     document.getElementById('search-input').value = '';
     document.getElementById('search-results').style.display = 'none';
@@ -1957,19 +2039,52 @@
         XLSX.writeFile(wb, 'kfg-' + page + '-' + new Date().getTime() + '.xlsx');
       }
     } else if (format === 'pdf') {
-      // Export as PDF with basic info
-      const text = 'KFG Dashboard - ' + page.toUpperCase() + ' Export\n' +
-                   'Generated: ' + new Date().toLocaleString() + '\n\n' +
-                   'Data Summary:\n' +
-                   JSON.stringify(dept.kpis || {}, null, 2);
-      const blob = new Blob([text], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'kfg-' + page + '-' + new Date().getTime() + '.txt';
-      a.click();
-      window.URL.revokeObjectURL(url);
-      alert('Exported as text file. For PDF export, use a dedicated PDF library.');
+      // Use browser print to PDF
+      const pageEl = document.getElementById('pg-' + page);
+      if (!pageEl) { alert('Page content not found'); return; }
+      const printWin = window.open('', '_blank');
+      printWin.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+        '<title>KFG Dashboard - ' + page.toUpperCase() + '</title>' +
+        '<style>' +
+        'body{font-family:Arial,sans-serif;font-size:12px;color:#0D1B35;padding:20px;}' +
+        'h1{font-size:18px;margin-bottom:4px;}' +
+        '.kpi-row{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;}' +
+        '.kpi-box{border:1px solid #ddd;border-radius:8px;padding:10px 16px;min-width:120px;}' +
+        '.kpi-box .val{font-size:22px;font-weight:700;color:#2563EB;}' +
+        '.kpi-box .lbl{font-size:11px;color:#555;margin-top:2px;}' +
+        'table{width:100%;border-collapse:collapse;margin:12px 0;}' +
+        'th{background:#0D1B35;color:#fff;padding:7px 10px;text-align:left;font-size:11px;}' +
+        'td{padding:6px 10px;border-bottom:1px solid #eee;font-size:11px;}' +
+        'tr:nth-child(even) td{background:#f9fafb;}' +
+        '@media print{body{padding:0;}button{display:none;}}' +
+        '</style></head><body>');
+      printWin.document.write('<h1>KFG Dashboard — ' + page.charAt(0).toUpperCase() + page.slice(1) + '</h1>');
+      printWin.document.write('<p style="color:#666;font-size:11px;">Generated: ' + new Date().toLocaleString() + '</p>');
+
+      // KPIs
+      if (dept.kpis) {
+        printWin.document.write('<div class="kpi-row">');
+        Object.entries(dept.kpis).forEach(function(entry) {
+          if (entry[0] === 'rag') return;
+          printWin.document.write('<div class="kpi-box"><div class="val">' + entry[1] + '</div><div class="lbl">' + entry[0] + '</div></div>');
+        });
+        printWin.document.write('</div>');
+      }
+
+      // Tables — use jobs/pos/tickets/deals/projects/sites lists
+      var tableData = dept.jobs || dept.pos || dept.tickets || dept.deals || dept.projects || dept.sites || [];
+      if (tableData.length) {
+        var cols = Object.keys(tableData[0]);
+        printWin.document.write('<table><tr>' + cols.map(function(c){ return '<th>' + c + '</th>'; }).join('') + '</tr>');
+        tableData.forEach(function(row) {
+          printWin.document.write('<tr>' + cols.map(function(c){ return '<td>' + (row[c] !== undefined ? row[c] : '') + '</td>'; }).join('') + '</tr>');
+        });
+        printWin.document.write('</table>');
+      }
+
+      printWin.document.write('<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};}<\/script>');
+      printWin.document.write('</body></html>');
+      printWin.document.close();
     }
   };
 
