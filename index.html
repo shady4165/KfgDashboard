@@ -338,19 +338,13 @@
               <div class="card" data-chart-id="c-capex-cat-spent">
                 <h3 class="card-title">Spent per Category</h3>
                 <div class="card-sub">AED — total spend by category</div>
-                <div class="chart-wrap" style="height:260px"><canvas id="c-capex-cat-spent" aria-label="Capex spent per category chart"></canvas></div>
+                <div class="chart-wrap" style="height:300px"><canvas id="c-capex-cat-spent" aria-label="Capex spent per category chart"></canvas></div>
               </div>
               <div class="card" data-chart-id="c-capex-cat-nursery">
                 <h3 class="card-title">Spent per Nursery</h3>
                 <div class="card-sub">AED — total spend by nursery</div>
-                <div class="chart-wrap" style="height:260px"><canvas id="c-capex-cat-nursery" aria-label="Capex spent per nursery chart"></canvas></div>
+                <div class="chart-wrap" style="height:300px"><canvas id="c-capex-cat-nursery" aria-label="Capex spent per nursery chart"></canvas></div>
               </div>
-            </div>
-            <div class="tbl-wrap">
-              <table role="table" aria-label="Capex category budget">
-                <thead><tr><th scope="col">Category</th><th scope="col">Budget (AED)</th><th scope="col">Spent YTD (AED)</th><th scope="col">Committed (AED)</th><th scope="col">Remaining (AED)</th><th scope="col">% Utilised</th><th scope="col">RAG</th></tr></thead>
-                <tbody id="t-capex-categories"></tbody>
-              </table>
             </div>
           </div>
         </div>
@@ -522,9 +516,9 @@
               </div>
             </div>
             <div class="analytics-summary" id="proc-supplier-summary"></div>
-            <div class="tbl-wrap">
-              <table role="table" aria-label="Supplier register">
-                <thead><tr><th scope="col">Supplier</th><th scope="col">Category</th><th scope="col">Contract Exp.</th><th scope="col">Contact</th><th scope="col">Annual Spend</th><th scope="col">Status</th><th scope="col">Insurance Valid</th><th scope="col">Notes</th></tr></thead>
+            <div class="tbl-wrap" style="overflow-x:auto">
+              <table role="table" aria-label="Active contracts" style="min-width:max-content">
+                <thead id="t-proc-suppliers-head"></thead>
                 <tbody id="t-proc-suppliers"></tbody>
               </table>
             </div>
@@ -778,9 +772,9 @@
 <!-- JavaScript Modules (load order matters) -->
 <script src="js/config.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/graph.js?v=7"></script>
-<script src="js/transform.js?v=6"></script>
-<script src="js/dashboard.js?v=6"></script>
+<script src="js/graph.js?v=8"></script>
+<script src="js/transform.js?v=7"></script>
+<script src="js/dashboard.js?v=7"></script>
 <script src="js/admin.js?v=2"></script>
 <script src="js/app.js?v=2"></script>
 

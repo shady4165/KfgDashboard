@@ -67,14 +67,32 @@
   /**
    * Format an Excel date serial or date string as DD/MM/YYYY.
    */
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  /** Format a date as "D-Month-YY" (e.g. 20-April-26). */
   function fmtDate(v) {
     if (!v) return '';
+    var d = null;
     if (typeof v === 'number' && v > 1000) {
       // Excel date serial (days since 1900-01-01)
-      var d = new Date((v - 25569) * 86400 * 1000);
-      return d.toLocaleDateString('en-GB');
+      d = new Date((v - 25569) * 86400 * 1000);
+    } else if (v instanceof Date && !isNaN(v.getTime())) {
+      d = v;
+    } else {
+      // Try to parse string dates
+      var s = String(v).trim();
+      var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (m) {
+        var y = parseInt(m[3], 10);
+        if (y < 100) y += 2000;
+        d = new Date(y, parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+      } else {
+        var parsed = new Date(s);
+        d = isNaN(parsed.getTime()) ? null : parsed;
+      }
     }
-    return String(v);
+    if (!d || isNaN(d.getTime())) return String(v);
+    return d.getDate() + '-' + MONTHS[d.getMonth()] + '-' + String(d.getFullYear()).slice(-2);
   }
 
   function parseDateValue(v) {
@@ -477,6 +495,7 @@
       refLabel: refLabel,
       pos: pos,
       suppliers: suppliers,
+      rawSuppliers: supplierRows,  // raw rows from Excel for generic rendering
       bySt:      Object.keys(bySt).length      ? bySt      : { 'N/A': 1 },
       byDept:    Object.keys(byDept).length    ? byDept    : { 'General': spendYTD },
       byNursery: Object.keys(byNursery).length ? byNursery : {},

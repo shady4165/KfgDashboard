@@ -611,10 +611,11 @@
    * @returns {Promise<Object>}
    */
   async function refreshData() {
-    _log('Refreshing data — clearing cache.');
+    _log('Refreshing data — clearing all caches.');
     _dataCache = {};
     _workbookCache = {};
     _workbookPromiseCache = {};
+    _fileIdCache = {};   // force file item IDs to be re-resolved from SharePoint
     return fetchAllDepartments();
   }
 

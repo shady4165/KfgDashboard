@@ -101,6 +101,13 @@
         { supplier: 'Office Depot', category: 'Stationery', contractExp: '31/03/2026', contact: 'corp@od.com', annualSpend: 5400, status: 'Active', insuranceValid: 'Yes', notes: '' },
         { supplier: 'BuildRight Ltd', category: 'Carpentry', contractExp: '30/09/2026', contact: 'projects@brl.com', annualSpend: 81600, status: 'Active', insuranceValid: 'Yes', notes: 'Approved contractor' },
       ],
+      rawSuppliers: [
+        { 'Supplier Name': 'ABC Supplies', 'Category': 'Cleaning', 'Contract Exp.': '31/12/2026', 'Contact': 'info@abc.com', 'Annual Spend (AED)': 42000, 'Status': 'Active', 'Insurance Valid': 'Yes' },
+        { 'Supplier Name': 'XYZ Contractors', 'Category': 'Maintenance', 'Contract Exp.': '30/06/2026', 'Contact': 'contracts@xyz.com', 'Annual Spend (AED)': 98400, 'Status': 'Active', 'Insurance Valid': 'Yes' },
+        { 'Supplier Name': 'Tech Solutions', 'Category': 'IT', 'Contract Exp.': '28/02/2027', 'Contact': 'sales@tech.com', 'Annual Spend (AED)': 144000, 'Status': 'Active', 'Insurance Valid': 'Valid' },
+        { 'Supplier Name': 'Office Depot', 'Category': 'Stationery', 'Contract Exp.': '31/03/2026', 'Contact': 'corp@od.com', 'Annual Spend (AED)': 5400, 'Status': 'Active', 'Insurance Valid': 'Yes' },
+        { 'Supplier Name': 'BuildRight Ltd', 'Category': 'Carpentry', 'Contract Exp.': '30/09/2026', 'Contact': 'projects@brl.com', 'Annual Spend (AED)': 81600, 'Status': 'Active', 'Insurance Valid': 'Yes' },
+      ],
     },
     it: {
       kpis: { openTickets: 3, resolved: 12, critical: 1, slaPct: 94, rag: 'Amber' },
@@ -161,6 +168,32 @@
   let DATA = null;       // current dataset (demo or live)
   let _isDemo = true;    // true when using demo data
   const CHARTS = {};     // { canvasId: Chart instance }
+
+  // Inline Chart.js plugin: draw value labels on top of bar columns
+  const _barLabelPlugin = {
+    id: 'kfgBarLabels',
+    afterDatasetsDraw: function (chart, args, opts) {
+      if (!opts || !opts.enabled) return;
+      var ctx = chart.ctx;
+      chart.data.datasets.forEach(function (dataset, i) {
+        var meta = chart.getDatasetMeta(i);
+        if (meta.hidden) return;
+        meta.data.forEach(function (el, idx) {
+          var val = dataset.data[idx];
+          if (!val && val !== 0) return;
+          ctx.save();
+          ctx.font = 'bold 10px sans-serif';
+          ctx.fillStyle = '#374151';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          var label = Number(val).toLocaleString('en-AE', { maximumFractionDigits: 0 });
+          ctx.fillText(label, el.x, el.y - 3);
+          ctx.restore();
+        });
+      });
+    },
+  };
+  if (window.Chart) window.Chart.register(_barLabelPlugin);
   const MAINT_ANALYTICS_STATE = {
     jobs: { sites: [], cats: [], from: '', to: '' },
     po: { sites: [], cats: [], from: '', to: '' }
@@ -866,20 +899,11 @@
     }
 
     renderAnalyticsSummary('capex-cat-summary', [
-      { label: 'Categories', value: rows.length },
-      { label: 'Budget', value: faed(rows.reduce(function (s, r) { return s + (Number(r.budget) || 0); }, 0)) },
+      { label: 'Tasks Completed', value: rows.length },
       { label: 'Spent', value: faed(rows.reduce(function (s, r) { return s + (Number(r.spent) || 0); }, 0)) },
-      { label: 'Committed', value: faed(rows.reduce(function (s, r) { return s + (Number(r.committed) || 0); }, 0)) }
     ]);
 
-    var tbl = document.getElementById('t-capex-categories');
-    if (tbl) {
-      tbl.innerHTML = rows.map(function (r) {
-        return '<tr><td>' + (r.category || '') + '</td><td>' + faed(r.budget) + '</td><td>' + faed(r.spent) + '</td><td>' + faed(r.committed) + '</td><td>' + faed(r.remaining) + '</td><td>' + fpct(r.pct) + '</td><td>' + pill(r.rag) + '</td></tr>';
-      }).join('');
-    }
-
-    // Chart: Total Spent per Category
+    // Chart: Total Spent per Category — with data labels on top of bars
     const spentByCat = {};
     rows.forEach(function (r) { if (r.category) spentByCat[r.category] = (spentByCat[r.category] || 0) + (Number(r.spent) || 0); });
     const catEntries = Object.entries(spentByCat).sort(function (a, b) { return b[1] - a[1]; });
@@ -889,18 +913,17 @@
         labels: catEntries.map(function (e) { return e[0]; }),
         datasets: [{ label: 'Spent (AED)', data: catEntries.map(function (e) { return e[1]; }), backgroundColor: '#2563EB', borderRadius: 4 }],
       },
-      options: noGridOpts(),
+      options: noGridOpts({ plugins: { legend: { display: false }, kfgBarLabels: { enabled: true } } }),
     });
 
-    // Chart: Total Spent per Nursery — use categoryRows (from Capex Register col C) first,
-    // fall back to projectRows if categoryRows have no nursery data
-    var hasCatNursery = categoryRows.some(function (r) { return r.nursery; });
-    var nurserySource = hasCatNursery ? categoryRows : projectRows;
-    const filteredProjects = nurserySource.filter(function (r) {
-      return matchesSiteSelection(r.nursery, selectedSites) && (!selectedCats.size || selectedCats.has(r.category));
+    // Chart: Total Spent per Nursery — always from projectRows so nursery filter works reliably
+    const filteredForNursery = projectRows.filter(function (r) {
+      var siteMatch = !usingNurseryFilter || matchesSiteSelection(r.nursery, selectedSites);
+      var catMatch  = !selectedCats.size   || selectedCats.has(r.category);
+      return siteMatch && catMatch;
     });
     const spentByNursery = {};
-    filteredProjects.forEach(function (r) {
+    filteredForNursery.forEach(function (r) {
       if (r.nursery) spentByNursery[r.nursery] = (spentByNursery[r.nursery] || 0) + (Number(r.spent) || 0);
     });
     const nurseryEntries = Object.entries(spentByNursery).sort(function (a, b) { return b[1] - a[1]; });
@@ -910,7 +933,7 @@
         labels: nurseryEntries.map(function (e) { return e[0]; }),
         datasets: [{ label: 'Spent (AED)', data: nurseryEntries.map(function (e) { return e[1]; }), backgroundColor: '#8B5CF6', borderRadius: 4 }],
       },
-      options: noGridOpts(),
+      options: noGridOpts({ plugins: { legend: { display: false }, kfgBarLabels: { enabled: true } } }),
     });
 
     bindCapexCategoryControls(function () {
@@ -936,9 +959,15 @@
   }
 
   function renderProcurementSuppliers(pr) {
+    // Use structured rows for filtering, raw rows for generic table display
     var rows = (pr.suppliers || []).slice();
-    var allSuppliers = safeUnique(rows.map(function (r) { return r.supplier; }));
-    var allCats = safeUnique(rows.map(function (r) { return r.category; }));
+    var rawRows = (pr.rawSuppliers || []).filter(function (r) {
+      return Object.values(r).some(function (v) { return v !== null && v !== undefined && v !== ''; });
+    });
+
+    var allSuppliers = safeUnique(rows.map(function (r) { return r.supplier; }).filter(Boolean));
+    var allCats = safeUnique(rows.map(function (r) { return r.category; }).filter(Boolean));
+    // If structured mapping yielded no supplier names, skip filter dropdowns
     PROC_SUPPLIER_STATE.suppliers = ensureStateSelection(PROC_SUPPLIER_STATE.suppliers, allSuppliers);
     PROC_SUPPLIER_STATE.cats = ensureStateSelection(PROC_SUPPLIER_STATE.cats, allCats);
     populateMultiSelect('proc-supplier-names', allSuppliers, PROC_SUPPLIER_STATE.suppliers);
@@ -947,21 +976,28 @@
     var toEl = document.getElementById('proc-supplier-to');
     if (fromEl) fromEl.value = PROC_SUPPLIER_STATE.from || '';
     if (toEl) toEl.value = PROC_SUPPLIER_STATE.to || '';
-    var selectedSuppliers = new Set(PROC_SUPPLIER_STATE.suppliers || []);
-    var selectedCats = new Set(PROC_SUPPLIER_STATE.cats || []);
-    var filtered = rows.filter(function (r) {
-      return (!selectedSuppliers.size || selectedSuppliers.has(r.supplier)) && (!selectedCats.size || selectedCats.has(r.category)) && (!r.contractExpObj || inDateRange(r.contractExpObj, PROC_SUPPLIER_STATE.from, PROC_SUPPLIER_STATE.to));
-    });
+
     renderAnalyticsSummary('proc-supplier-summary', [
-      { label: 'Suppliers', value: filtered.length },
-      { label: 'Annual Spend', value: faed(filtered.reduce(function (s, r) { return s + (Number(r.annualSpend) || 0); }, 0)) },
-      { label: 'Active', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'active'; }).length },
-      { label: 'Insurance Valid', value: filtered.filter(function (r) { return String(r.insuranceValid || '').toLowerCase().includes('yes') || String(r.insuranceValid || '').toLowerCase().includes('valid'); }).length }
+      { label: 'Records', value: rawRows.length },
+      { label: 'Annual Spend', value: faed(rows.reduce(function (s, r) { return s + (Number(r.annualSpend) || 0); }, 0)) },
+      { label: 'Active', value: rows.filter(function (r) { return String(r.status || '').toLowerCase() === 'active'; }).length },
     ]);
-    var tbl = document.getElementById('t-proc-suppliers');
-    if (tbl) {
-      tbl.innerHTML = filtered.map(function (r) {
-        return '<tr><td>' + (r.supplier || '') + '</td><td>' + (r.category || '') + '</td><td>' + (r.contractExp || '') + '</td><td>' + (r.contact || '') + '</td><td>' + faed(r.annualSpend) + '</td><td>' + pill(r.status) + '</td><td>' + (r.insuranceValid || '') + '</td><td>' + (r.notes || '') + '</td></tr>';
+
+    // Generic table — render all columns from raw Excel data
+    var tbl  = document.getElementById('t-proc-suppliers');
+    var thead = document.getElementById('t-proc-suppliers-head');
+    if (tbl && rawRows.length) {
+      var cols = Object.keys(rawRows[0]);
+      if (thead) {
+        thead.innerHTML = '<tr>' + cols.map(function (c) { return '<th scope="col">' + c + '</th>'; }).join('') + '</tr>';
+      }
+      tbl.innerHTML = rawRows.map(function (r) {
+        return '<tr>' + cols.map(function (c) {
+          var v = r[c];
+          if (v === null || v === undefined) return '<td></td>';
+          if (typeof v === 'number' && !isNaN(v)) return '<td>' + Math.round(v).toLocaleString('en-AE') + '</td>';
+          return '<td>' + v + '</td>';
+        }).join('') + '</tr>';
       }).join('');
     }
     bindProcurementSupplierControls(function () {
@@ -1605,22 +1641,42 @@
       options: noGridOpts(),
     });
 
-    // Pipeline Overview raw table — format numbers with thousands separator (no decimals)
+    // Pipeline Overview raw table — format numbers + rename/shorten column headers
     const pipeTbl  = document.getElementById('t-gf-pipeline');
     const pipeHead = document.getElementById('t-gf-pipeline-head');
     const pipeRows = g.rawPipeline || [];
     if (pipeTbl && pipeRows.length) {
       const cols = Object.keys(pipeRows[0]);
+
+      // Column label overrides (match by lowercased substring)
+      function pipeColLabel(c) {
+        var lc = c.toLowerCase();
+        if (lc.includes('site id') || lc === 'id' || lc === 'site no')         return 'ID';
+        if (lc.includes('indoor') && lc.includes('sqft'))                        return 'Indoor (SQFT)';
+        if (lc.includes('outdoor') && lc.includes('sqft'))                       return 'Outdoor (SQFT)';
+        if (lc.includes('location') && lc.includes('city'))                      return 'City';
+        if (lc.includes('opening'))                                               return 'Opening';
+        return c; // keep original
+      }
+
+      // Cell value transform (strip "Location / " prefix from city cells)
+      var locationColIdx = cols.findIndex(function (c) { return c.toLowerCase().includes('location') && c.toLowerCase().includes('city'); });
+
       if (pipeHead) {
-        pipeHead.innerHTML = '<tr>' + cols.map(function (c) {
-          return '<th scope="col" style="white-space:nowrap">' + c + '</th>';
+        pipeHead.innerHTML = '<tr>' + cols.map(function (c, i) {
+          var label = pipeColLabel(c);
+          var isId = label === 'ID';
+          return '<th scope="col" style="white-space:nowrap' + (isId ? ';width:60px;max-width:60px' : '') + '">' + label + '</th>';
         }).join('') + '</tr>';
       }
       pipeTbl.innerHTML = pipeRows.map(function (r) {
-        return '<tr>' + cols.map(function (c) {
+        return '<tr>' + cols.map(function (c, i) {
           var v = r[c];
           if (v === null || v === undefined) return '<td>-</td>';
-          // Format numbers: thousands separator, no decimals
+          // Strip "Location / " or "Location/" prefix from city column
+          if (i === locationColIdx && typeof v === 'string') {
+            v = v.replace(/^Location\s*\/\s*/i, '').trim();
+          }
           if (typeof v === 'number' && !isNaN(v)) {
             return '<td style="text-align:right;white-space:nowrap">' + Math.round(v).toLocaleString('en-AE') + '</td>';
           }
