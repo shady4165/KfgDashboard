@@ -83,13 +83,14 @@
 <div id="app" style="display:none">
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <div class="sidebar-logo" aria-hidden="true">&#x1F4CA;</div>
       <div>
         <div class="sidebar-title">KFG Dashboard</div>
         <div class="sidebar-subtitle" id="env-label">Operations Hub</div>
       </div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()" type="button" aria-label="Toggle sidebar" title="Collapse sidebar">◀</button>
     </div>
 
     <nav class="sidebar-nav" id="nav" role="navigation" aria-label="Department navigation">

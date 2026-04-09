@@ -147,8 +147,15 @@
       var s = (j.status || '').toLowerCase();
       return s === 'open' || s === 'in progress' || s === 'scheduled' || s === 'assigned';
     }).length;
+
+    // Filter for completed jobs in current month only
+    var now = new Date();
+    var currentMonth = now.getMonth();
+    var currentYear = now.getFullYear();
     var completedMTD = jobs.filter(function (j) {
-      return (j.status || '').toLowerCase() === 'completed';
+      if ((j.status || '').toLowerCase() !== 'completed') return false;
+      if (!j.completedDateObj) return false;
+      return j.completedDateObj.getMonth() === currentMonth && j.completedDateObj.getFullYear() === currentYear;
     }).length;
     var overdueJobs  = jobs.filter(function (j) {
       var s = (j.status || '').toLowerCase();

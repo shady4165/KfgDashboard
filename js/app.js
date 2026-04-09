@@ -385,6 +385,15 @@
      INITIALIZATION
   ══════════════════════════════════════════════ */
   async function initApp() {
+    // Restore sidebar collapsed state
+    const sidebarCollapsed = localStorage.getItem('kfg-sidebar-collapsed');
+    if (sidebarCollapsed === 'true') {
+      const sidebar = $('sidebar');
+      const app = $('app');
+      if (sidebar) sidebar.classList.add('collapsed');
+      if (app) app.classList.add('sidebar-collapsed');
+    }
+
     // Initialize config manager
     if (window.KFGConfig) {
       window.KFGConfig.init();
@@ -429,6 +438,27 @@
   }
 
   /* ══════════════════════════════════════════════
+     SIDEBAR TOGGLE
+  ══════════════════════════════════════════════ */
+  function toggleSidebar() {
+    const sidebar = $('sidebar');
+    const app = $('app');
+    const isCollapsed = sidebar && sidebar.classList.contains('collapsed');
+
+    if (sidebar) {
+      if (isCollapsed) {
+        sidebar.classList.remove('collapsed');
+        if (app) app.classList.remove('sidebar-collapsed');
+        localStorage.setItem('kfg-sidebar-collapsed', 'false');
+      } else {
+        sidebar.classList.add('collapsed');
+        if (app) app.classList.add('sidebar-collapsed');
+        localStorage.setItem('kfg-sidebar-collapsed', 'true');
+      }
+    }
+  }
+
+  /* ══════════════════════════════════════════════
      EXPOSE GLOBAL FUNCTIONS
   ══════════════════════════════════════════════ */
   // These are called from onclick handlers in HTML
@@ -440,6 +470,7 @@
   window.goByKey = goByKey;
   window.logout = logout;
   window.switchPageTab = switchPageTab;
+  window.toggleSidebar = toggleSidebar;
 
   /* ══════════════════════════════════════════════
      BOOT

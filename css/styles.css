@@ -1898,6 +1898,107 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
 /* Hide the amber dot in sidebar (cleaner look) */
 .sidebar-nav .nav-dot { display: none; }
 
+/* Sidebar toggle button */
+.sidebar-toggle {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 6px;
+  margin-left: auto;
+  border-radius: 4px;
+  transition: color 0.18s, background 0.18s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-toggle:hover {
+  background: #f3f4f6;
+  color: var(--navy);
+}
+.sidebar-toggle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* Collapsed sidebar styles */
+.sidebar.collapsed {
+  width: 64px;
+  min-width: 64px;
+}
+.sidebar.collapsed .sidebar-brand {
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 8px;
+}
+.sidebar.collapsed .sidebar-brand > div:nth-child(2) {
+  display: none;
+}
+.sidebar.collapsed .sidebar-toggle {
+  transform: rotate(180deg);
+}
+.sidebar.collapsed .sidebar-nav {
+  padding: 8px 4px;
+}
+.sidebar.collapsed .sidebar-nav .nav-item {
+  justify-content: center;
+  gap: 0;
+  padding: 9px 8px;
+  font-size: 20px;
+  min-width: 44px;
+}
+.sidebar.collapsed .sidebar-nav .nav-item:hover::after,
+.sidebar.collapsed .sidebar-nav .nav-item.active::after {
+  content: attr(data-page);
+  position: absolute;
+  left: 64px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--navy);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+}
+.sidebar.collapsed .sidebar-footer {
+  padding: 8px;
+  gap: 6px;
+}
+.sidebar.collapsed .sidebar-user {
+  display: none;
+}
+.sidebar.collapsed .sidebar-status {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar.collapsed .sidebar-status span {
+  display: none;
+}
+.sidebar.collapsed .sidebar-btn {
+  padding: 8px;
+  font-size: 12px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Adjust main-area when sidebar is collapsed */
+#app.sidebar-collapsed .main-area {
+  margin-left: 64px;
+  width: calc(100% - 64px);
+}
+#app:not(.sidebar-collapsed) .main-area {
+  margin-left: 240px;
+  width: calc(100% - 240px);
+}
+
 .sidebar-footer {
   padding: 14px 14px;
   border-top: 1px solid #e5e7eb;
