@@ -236,8 +236,12 @@
     }).filter(function (n) { return n !== null && n.name; });
 
     var categories = categoryRows.map(function (r) {
+      // Nursery is in column C — try common header names as well as positional (3rd key)
+      var keys = Object.keys(r);
+      var nurseryByPosition = keys.length >= 3 ? r[keys[2]] : null; // column C = index 2
       return {
-        category: String(col(r, 'Category', 'Capex Category') || '').trim(),
+        category: String(col(r, 'Category', 'Capex Category', 'Type') || '').trim(),
+        nursery: String(col(r, 'Nursery', 'Site', 'Branch', 'Location') || nurseryByPosition || '').trim(),
         budget: num(col(r, 'Annual Budget (AED)', 'Budget', 'Budget (AED)')),
         spent: num(col(r, 'Spent YTD (AED)', 'Spent', 'Spent (AED)')),
         committed: num(col(r, 'Committed (AED)', 'Committed')),
@@ -346,7 +350,9 @@
       };
     }).filter(function (p) { return p.name || p.id || p.owner; });
 
-    var active  = list.length;
+    // Count distinct project names (Excel often has multiple rows per project)
+    var distinctNames = new Set(list.map(function (p) { return (p.name || '').trim().toLowerCase(); }).filter(Boolean));
+    var active  = distinctNames.size || list.length;
     var onTrack = list.filter(function (p) {
       var r = (p.rag || '').toLowerCase();
       return r === 'green' || r.includes('on track') || r.includes('track');
@@ -427,19 +433,25 @@
     }).filter(function (p) { return p.ref || p.supplier || p.nursery; });
 
     var suppliers = supplierRows.map(function (r) {
-      var expRaw = col(r, 'Contract Exp.', 'Contract Expiry', 'Expiry Date', 'Expiry');
+      var expRaw = col(r, 'Contract Exp.', 'Contract Expiry', 'Expiry Date', 'Expiry', 'Contract End', 'End Date', 'Renewal Date');
+      // Grab first non-empty value as supplier name fallback for unknown column layouts
+      var keys = Object.keys(r);
+      var firstVal = keys.length ? String(r[keys[0]] || '') : '';
       return {
-        supplier: col(r, 'Supplier Name', 'Supplier', 'Vendor') || '',
-        category: col(r, 'Category', 'Type') || '',
+        supplier: col(r, 'Supplier Name', 'Supplier', 'Vendor', 'Company', 'Name') || firstVal || '',
+        category: col(r, 'Category', 'Type', 'Service Type', 'Contract Type') || '',
         contractExp: fmtDate(expRaw),
         contractExpObj: parseDateValue(expRaw),
-        contact: col(r, 'Contact', 'Contact Person', 'Email', 'Phone') || '',
-        annualSpend: num(col(r, 'Annual Spend (£)', 'Annual Spend (AED)', 'Annual Spend', 'Spend')),
-        status: col(r, 'Status') || '',
-        insuranceValid: col(r, 'Insurance Valid', 'Insurance', 'Insurance Status') || '',
-        notes: col(r, 'Notes', 'Remarks') || ''
+        contact: col(r, 'Contact', 'Contact Person', 'Email', 'Phone', 'Contact Name') || '',
+        annualSpend: num(col(r, 'Annual Spend (£)', 'Annual Spend (AED)', 'Annual Spend', 'Spend', 'Contract Value', 'Value (AED)', 'Value')),
+        status: col(r, 'Status', 'Contract Status', 'Active') || '',
+        insuranceValid: col(r, 'Insurance Valid', 'Insurance', 'Insurance Status', 'Insurance Exp') || '',
+        notes: col(r, 'Notes', 'Remarks', 'Comments') || ''
       };
-    }).filter(function (s) { return s.supplier || s.category; });
+    }).filter(function (s) {
+      // Keep any row that has at least one non-empty value
+      return Object.values(s).some(function (v) { return v !== null && v !== undefined && v !== '' && v !== 0; });
+    });
 
     // spendYTD = total value of all POs (not just delivered)
     var spendYTD = pos.reduce(function (s, p) { return s + p.value; }, 0);
@@ -593,20 +605,22 @@
     deals.forEach(function (d) { dealMap[d.id] = d.target; });
 
     var milestones = milestoneRows.map(function (r) {
-      var dueRaw = col(r, 'Due Date', 'Target Date', 'Date');
-      var dealId = col(r, 'Deal ID', 'Project ID', 'ID', 'Ref') || '';
+      var dueRaw = col(r, 'Due Date', 'Target Date', 'Completion Date', 'Date', 'Deadline');
+      var dealId = col(r, 'Deal ID', 'Project ID', 'ID', 'Ref', 'Deal Ref') || '';
       return {
         dealId: dealId,
-        target: dealMap[dealId] || '',
-        milestone: col(r, 'Milestone', 'Task', 'Action') || '',
+        target: dealMap[dealId] || col(r, 'Target', 'Company', 'Target Name') || '',
+        milestone: col(r, 'Milestone', 'Task', 'Action', 'Description', 'Activity', 'Item') || '',
         dueDate: fmtDate(dueRaw),
         dueDateObj: parseDateValue(dueRaw),
-        owner: col(r, 'Owner', 'Lead', 'Responsible') || '',
-        status: col(r, 'Status') || '',
+        owner: col(r, 'Owner', 'Lead', 'Responsible', 'Assigned To') || '',
+        status: col(r, 'Status', 'Milestone Status', 'Progress') || '',
         priority: col(r, 'Priority') || '',
-        notes: col(r, 'Notes', 'Remarks') || ''
+        notes: col(r, 'Notes', 'Remarks', 'Comments') || ''
       };
-    }).filter(function (m) { return m.dealId || m.milestone; });
+    }).filter(function (m) {
+      return Object.values(m).some(function (v) { return v !== null && v !== undefined && v !== '' && !(v instanceof Date); });
+    });
 
     var pipeline     = deals.length;
     var dueDiligence = deals.filter(function (d) {

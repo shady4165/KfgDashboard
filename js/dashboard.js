@@ -827,7 +827,12 @@
   function renderCapexCategoryBudget(c) {
     var projectRows = c.projects || [];
     var categoryRows = c.categories || [];
-    var allSites = siteFilterOptions(projectRows.map(function (r) { return r.nursery; }));
+    // Pull nurseries from both the Capex Register rows (column C) and the Projects Register
+    var allSites = siteFilterOptions(
+      categoryRows.map(function (r) { return r.nursery; }).concat(
+        projectRows.map(function (r) { return r.nursery; })
+      )
+    );
     var allCats = safeUnique(categoryRows.map(function (r) { return r.category; }).concat(projectRows.map(function (r) { return r.category; })));
     CAPEX_CATEGORY_STATE.sites = ensureStateSelection(CAPEX_CATEGORY_STATE.sites, allSites);
     CAPEX_CATEGORY_STATE.cats = ensureStateSelection(CAPEX_CATEGORY_STATE.cats, allCats);
@@ -887,8 +892,11 @@
       options: noGridOpts(),
     });
 
-    // Chart: Total Spent per Nursery (from projectRows)
-    const filteredProjects = projectRows.filter(function (r) {
+    // Chart: Total Spent per Nursery — use categoryRows (from Capex Register col C) first,
+    // fall back to projectRows if categoryRows have no nursery data
+    var hasCatNursery = categoryRows.some(function (r) { return r.nursery; });
+    var nurserySource = hasCatNursery ? categoryRows : projectRows;
+    const filteredProjects = nurserySource.filter(function (r) {
       return matchesSiteSelection(r.nursery, selectedSites) && (!selectedCats.size || selectedCats.has(r.category));
     });
     const spentByNursery = {};
@@ -1597,17 +1605,27 @@
       options: noGridOpts(),
     });
 
-    // Pipeline Overview raw table
+    // Pipeline Overview raw table — format numbers with thousands separator (no decimals)
     const pipeTbl  = document.getElementById('t-gf-pipeline');
     const pipeHead = document.getElementById('t-gf-pipeline-head');
     const pipeRows = g.rawPipeline || [];
     if (pipeTbl && pipeRows.length) {
       const cols = Object.keys(pipeRows[0]);
       if (pipeHead) {
-        pipeHead.innerHTML = '<tr>' + cols.map(function (c) { return '<th scope="col">' + c + '</th>'; }).join('') + '</tr>';
+        pipeHead.innerHTML = '<tr>' + cols.map(function (c) {
+          return '<th scope="col" style="white-space:nowrap">' + c + '</th>';
+        }).join('') + '</tr>';
       }
       pipeTbl.innerHTML = pipeRows.map(function (r) {
-        return '<tr>' + cols.map(function (c) { return '<td>' + (r[c] !== null && r[c] !== undefined ? r[c] : '') + '</td>'; }).join('') + '</tr>';
+        return '<tr>' + cols.map(function (c) {
+          var v = r[c];
+          if (v === null || v === undefined) return '<td>-</td>';
+          // Format numbers: thousands separator, no decimals
+          if (typeof v === 'number' && !isNaN(v)) {
+            return '<td style="text-align:right;white-space:nowrap">' + Math.round(v).toLocaleString('en-AE') + '</td>';
+          }
+          return '<td style="white-space:nowrap">' + v + '</td>';
+        }).join('') + '</tr>';
       }).join('');
     }
   }
