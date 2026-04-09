@@ -469,6 +469,31 @@
       });
       tbl.innerHTML = html;
     }
+
+    // Comparison chart - open items by department
+    const compData = window.getComparisonData();
+    if (compData && compData.byDept) {
+      const compCfg = getCfg('c-comp-items');
+      mkChart('c-comp-items', {
+        type: 'bar',
+        data: {
+          labels: compData.byDept.labels,
+          datasets: [{
+            label: 'Open Items',
+            data: compData.byDept.openItems,
+            backgroundColor: compCfg ? compCfg.colors || ['#2563EB'] : '#2563EB',
+            borderRadius: 4,
+          }],
+        },
+        options: noGridOpts(),
+      });
+    }
+
+    // Comparison metrics display
+    document.getElementById('comp-maint').textContent = (D.maintenance && D.maintenance.kpis.openJobs) || '—';
+    document.getElementById('comp-capex').textContent = (D.capex && D.capex.kpis.utilisedPct) ? fpct(D.capex.kpis.utilisedPct) : '—';
+    document.getElementById('comp-proj').textContent = (D.projects && D.projects.kpis.active) || '—';
+    document.getElementById('comp-proc').textContent = (D.procurement && D.procurement.kpis.openTickets) || '—';
   }
 
 
@@ -1824,6 +1849,145 @@
     });
     buildAll();
   }
+
+  // --------------------------------------------------------------------------
+  //  Search Functionality
+  // --------------------------------------------------------------------------
+
+  window.performSearch = function(query) {
+    const resultsDiv = document.getElementById('search-results');
+    if (!query || query.trim().length < 2) {
+      resultsDiv.style.display = 'none';
+      return;
+    }
+
+    const q = query.toLowerCase();
+    const results = {};
+    const data = DATA || DEMO;
+
+    // Search maintenance jobs
+    if (data.maintenance && data.maintenance.jobs) {
+      results.jobs = data.maintenance.jobs.filter(j =>
+        j.id.toLowerCase().includes(q) ||
+        j.desc.toLowerCase().includes(q) ||
+        j.site.toLowerCase().includes(q)
+      ).slice(0, 10).map(j => ({ type: 'Job', text: j.id + ': ' + j.desc, page: 'maintenance', obj: j }));
+    }
+
+    // Search projects
+    if (data.projects && data.projects.list) {
+      results.projects = data.projects.list.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.status || '').toLowerCase().includes(q)
+      ).slice(0, 10).map(p => ({ type: 'Project', text: p.name, page: 'projects', obj: p }));
+    }
+
+    // Build HTML
+    let html = '';
+    if (results.jobs && results.jobs.length > 0) {
+      html += '<div class="search-result-group">Jobs</div>';
+      results.jobs.forEach(r => {
+        html += '<div class="search-result-item" onclick="goToResult(\'' + r.page + '\', \'' + (r.obj.id || '') + '\')">' + r.text + '</div>';
+      });
+    }
+    if (results.projects && results.projects.length > 0) {
+      html += '<div class="search-result-group">Projects</div>';
+      results.projects.forEach(r => {
+        html += '<div class="search-result-item" onclick="go(\'' + r.page + '\')">' + r.text + '</div>';
+      });
+    }
+
+    if (!html) {
+      html = '<div class="search-result-item" style="color: var(--muted);">No results found</div>';
+    }
+
+    resultsDiv.innerHTML = html;
+    resultsDiv.style.display = 'block';
+  };
+
+  window.goToResult = function(page, itemId) {
+    go(page);
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-results').style.display = 'none';
+  };
+
+  // Close search results on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const resultsDiv = document.getElementById('search-results');
+      if (resultsDiv) resultsDiv.style.display = 'none';
+    }
+  });
+
+  // Date range filtering
+  window.filterMaintByDate = function() {
+    const from = document.getElementById('maint-date-from').value;
+    const to = document.getElementById('maint-date-to').value;
+    if (!from || !to) { alert('Please select both dates'); return; }
+    localStorage.setItem('kfg-maint-date-from', from);
+    localStorage.setItem('kfg-maint-date-to', to);
+    buildMaintenance();
+  };
+
+  window.resetMaintFilter = function() {
+    document.getElementById('maint-date-from').value = '';
+    document.getElementById('maint-date-to').value = '';
+    localStorage.removeItem('kfg-maint-date-from');
+    localStorage.removeItem('kfg-maint-date-to');
+    buildMaintenance();
+  };
+
+  // Export functionality
+  window.exportPageData = function(page, format) {
+    const data = DATA || DEMO;
+    const dept = data[page];
+    if (!dept) { alert('No data to export'); return; }
+
+    if (format === 'xlsx') {
+      // Export as Excel using XLSX if available
+      if (window.XLSX) {
+        const ws = XLSX.utils.aoa_to_sheet([[page.toUpperCase() + ' Data Export - ' + new Date().toLocaleDateString()]]);
+        if (dept.jobs) {
+          const jobsData = [['ID', 'Site', 'Description', 'Status', 'Cost']];
+          dept.jobs.forEach(j => jobsData.push([j.id, j.site, j.desc, j.status, j.cost]));
+          XLSX.utils.sheet_add_aoa(ws, jobsData, { origin: 'A3' });
+        }
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Data');
+        XLSX.writeFile(wb, 'kfg-' + page + '-' + new Date().getTime() + '.xlsx');
+      }
+    } else if (format === 'pdf') {
+      // Export as PDF with basic info
+      const text = 'KFG Dashboard - ' + page.toUpperCase() + ' Export\n' +
+                   'Generated: ' + new Date().toLocaleString() + '\n\n' +
+                   'Data Summary:\n' +
+                   JSON.stringify(dept.kpis || {}, null, 2);
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'kfg-' + page + '-' + new Date().getTime() + '.txt';
+      a.click();
+      window.URL.revokeObjectURL(url);
+      alert('Exported as text file. For PDF export, use a dedicated PDF library.');
+    }
+  };
+
+  // Comparison data builder
+  window.getComparisonData = function() {
+    const data = DATA || DEMO;
+    return {
+      byDept: {
+        labels: ['Maintenance', 'Capex', 'Projects', 'Procurement'],
+        openItems: [
+          data.maintenance?.kpis?.openJobs || 0,
+          data.capex?.kpis?.remaining || 0,
+          data.projects?.kpis?.active || 0,
+          data.procurement?.kpis?.openTickets || 0
+        ]
+      }
+    };
+  };
 
   // --------------------------------------------------------------------------
   //  Public API

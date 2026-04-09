@@ -19,7 +19,10 @@
       "Bash(python -c \"import openpyxl; print\\(''''openpyxl ok''''\\)\")",
       "Bash(python -c \":*)",
       "Read(//c/Users/Shady/Downloads/**)",
-      "Bash(python -c \"import zipfile; z=zipfile.ZipFile\\(''KfgDashboard_maintenance_analytics_update.zip''\\); print\\(''\\\\n''.join\\(z.namelist\\(\\)\\)\\)\")"
+      "Bash(python -c \"import zipfile; z=zipfile.ZipFile\\(''KfgDashboard_maintenance_analytics_update.zip''\\); print\\(''\\\\n''.join\\(z.namelist\\(\\)\\)\\)\")",
+      "Bash(grep -r \"init\\(\" \"C:\\\\Users\\\\Shady\\\\OneDrive - Kids First Group L.L.C\\\\Documents\\\\KfgDashboard\\\\js\\\\\" --include=\"*.js\" | grep -i \"graph\\\\|kfg\")",
+      "Bash(grep -n \"KFGGraph.init\\\\|\\\\.init\" *.js)",
+      "Bash(grep -n \"in-site\" js/*.js index.html)"
     ]
   }
 }

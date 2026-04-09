@@ -126,6 +126,10 @@
       <div class="topbar-breadcrumb">
         <span class="topbar-page-label" id="topbar-page-label">Home</span>
       </div>
+      <div class="topbar-center">
+        <input type="text" id="search-input" class="search-input" placeholder="Search jobs, projects..." oninput="performSearch(this.value)" />
+        <div class="search-results" id="search-results" style="display: none;"></div>
+      </div>
       <div class="topbar-right">
         <button class="topbar-btn" onclick="toggleDarkMode()" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" id="dark-mode-toggle">☀️</button>
         <span class="ts-label" id="ts-label" aria-label="Last updated"></span>
@@ -147,6 +151,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-home','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-home','summary')" type="button">Department Summary</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-home','comparison')" type="button">Comparison</button>
         </div>
         <div class="tab-pane active" id="pg-home-overview">
           <div class="grid-2">
@@ -174,6 +179,37 @@
             </div>
           </div>
         </div>
+        <div class="tab-pane" id="pg-home-comparison">
+          <div class="grid-2">
+            <div class="card" data-chart-id="c-comp-items">
+              <h3 class="card-title">Open Items by Department</h3>
+              <div class="card-sub">Cross-department comparison</div>
+              <div class="chart-wrap" style="height:260px"><canvas id="c-comp-items" aria-label="Open items comparison chart"></canvas></div>
+            </div>
+            <div class="card">
+              <h3 class="card-title">Department Metrics</h3>
+              <div class="card-sub">Key indicators across departments</div>
+              <div style="padding: 16px; font-size: 13px; line-height: 1.8;">
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                  <span><strong>Maintenance:</strong></span>
+                  <span id="comp-maint" style="font-weight: 600;">—</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                  <span><strong>Capex:</strong></span>
+                  <span id="comp-capex" style="font-weight: 600;">—</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                  <span><strong>Projects:</strong></span>
+                  <span id="comp-proj" style="font-weight: 600;">—</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                  <span><strong>Procurement:</strong></span>
+                  <span id="comp-proc" style="font-weight: 600;">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- MAINTENANCE PAGE -->
@@ -182,6 +218,10 @@
           <div>
             <h2 class="sec-title">&#x1F527; Maintenance</h2>
             <div class="sec-sub">35 nursery sites — jobs, response times, site RAG</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="sidebar-btn" onclick="exportPageData('maintenance', 'xlsx')" style="padding: 6px 12px; font-size: 12px;">📊 Export Excel</button>
+            <button class="sidebar-btn" onclick="exportPageData('maintenance', 'pdf')" style="padding: 6px 12px; font-size: 12px;">📄 Export PDF</button>
           </div>
         </div>
         <div class="kpi-row" id="k-maint" role="list" aria-label="Maintenance KPIs"></div>
@@ -209,6 +249,12 @@
           <div class="card" data-table-id="t-maint-jobs">
             <h3 class="card-title">Jobs Register</h3>
             <div class="card-sub">All active maintenance jobs</div>
+            <div style="display: flex; gap: 12px; padding: 12px 0; flex-wrap: wrap; align-items: center; font-size: 13px;">
+              <label style="display: flex; gap: 6px; align-items: center;">From: <input type="date" id="maint-date-from" class="date-input" style="width: 140px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" /></label>
+              <label style="display: flex; gap: 6px; align-items: center;">To: <input type="date" id="maint-date-to" class="date-input" style="width: 140px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" /></label>
+              <button class="sidebar-btn" onclick="window.filterMaintByDate()" style="padding: 6px 12px; font-size: 12px;">Apply</button>
+              <button class="sidebar-btn" onclick="window.resetMaintFilter()" style="padding: 6px 12px; font-size: 12px;">Reset</button>
+            </div>
             <div class="tbl-wrap">
               <table role="table" aria-label="Maintenance jobs register">
                 <thead><tr><th scope="col">Job ID</th><th scope="col">Site</th><th scope="col">Description</th><th scope="col">Category</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Est. Cost (AED)</th></tr></thead>
