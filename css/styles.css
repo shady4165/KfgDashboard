@@ -2154,18 +2154,15 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   border-color: var(--blue);
 }
 .search-results {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
   background: var(--card);
   border: 1px solid var(--border2);
   border-radius: 8px;
-  width: 420px;
-  max-height: 420px;
+  width: 440px;
+  max-height: 440px;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-  z-index: 9999;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+  z-index: 99999;
 }
 .search-result-group {
   padding: 8px 12px;

@@ -1960,6 +1960,15 @@
     }
 
     resultsDiv.innerHTML = html;
+
+    // Position the dropdown below the search input using fixed positioning
+    var inputEl = document.getElementById('search-input');
+    if (inputEl) {
+      var rect = inputEl.getBoundingClientRect();
+      resultsDiv.style.top = (rect.bottom + 6) + 'px';
+      resultsDiv.style.left = (rect.left + rect.width / 2 - 220) + 'px';
+    }
+
     resultsDiv.style.display = 'block';
   };
 

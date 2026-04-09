@@ -22,7 +22,7 @@
 <script src="js/msal-browser.min.js"></script>
 
 <!-- Stylesheet -->
-<link rel="stylesheet" href="css/styles.css?v=3">
+<link rel="stylesheet" href="css/styles.css?v=4">
 </head>
 <body>
 
@@ -127,8 +127,7 @@
         <span class="topbar-page-label" id="topbar-page-label">Home</span>
       </div>
       <div class="topbar-center">
-        <input type="text" id="search-input" class="search-input" placeholder="Search jobs, projects..." oninput="performSearch(this.value)" />
-        <div class="search-results" id="search-results" style="display: none;"></div>
+        <input type="text" id="search-input" class="search-input" placeholder="Search jobs, projects..." oninput="performSearch(this.value)" autocomplete="off" />
       </div>
       <div class="topbar-right">
         <button class="topbar-btn" onclick="toggleDarkMode()" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" id="dark-mode-toggle">☀️</button>
@@ -789,10 +788,13 @@
 <script src="js/config.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/graph.js?v=8"></script>
-<script src="js/transform.js?v=9"></script>
-<script src="js/dashboard.js?v=9"></script>
-<script src="js/admin.js?v=3"></script>
-<script src="js/app.js?v=3"></script>
+<script src="js/transform.js?v=10"></script>
+<script src="js/dashboard.js?v=10"></script>
+<script src="js/admin.js?v=4"></script>
+<script src="js/app.js?v=4"></script>
+
+<!-- Search results dropdown — placed at body level to avoid stacking context issues -->
+<div class="search-results" id="search-results" style="display:none;"></div>
 
 </body>
 </html>
