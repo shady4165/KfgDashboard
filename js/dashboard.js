@@ -159,10 +159,10 @@
     return Number(v).toLocaleString('en-AE');
   }
 
-  /** Format as AED currency. */
+  /** Format as AED currency (no decimals). */
   function faed(v) {
     if (v == null || v === '') return '-';
-    return 'AED ' + Number(v).toLocaleString('en-AE');
+    return 'AED ' + Number(v).toLocaleString('en-AE', { maximumFractionDigits: 0 });
   }
 
   /** Format as percentage. */
@@ -849,6 +849,37 @@
       }).join('');
     }
 
+    // Chart: Total Spent per Category
+    const spentByCat = {};
+    rows.forEach(function (r) { if (r.category) spentByCat[r.category] = (spentByCat[r.category] || 0) + (Number(r.spent) || 0); });
+    const catEntries = Object.entries(spentByCat).sort(function (a, b) { return b[1] - a[1]; });
+    mkChart('c-capex-cat-spent', {
+      type: 'bar',
+      data: {
+        labels: catEntries.map(function (e) { return e[0]; }),
+        datasets: [{ label: 'Spent (AED)', data: catEntries.map(function (e) { return e[1]; }), backgroundColor: '#2563EB', borderRadius: 4 }],
+      },
+      options: noGridOpts(),
+    });
+
+    // Chart: Total Spent per Nursery (from projectRows)
+    const filteredProjects = projectRows.filter(function (r) {
+      return matchesSiteSelection(r.nursery, selectedSites) && (!selectedCats.size || selectedCats.has(r.category));
+    });
+    const spentByNursery = {};
+    filteredProjects.forEach(function (r) {
+      if (r.nursery) spentByNursery[r.nursery] = (spentByNursery[r.nursery] || 0) + (Number(r.spent) || 0);
+    });
+    const nurseryEntries = Object.entries(spentByNursery).sort(function (a, b) { return b[1] - a[1]; });
+    mkChart('c-capex-cat-nursery', {
+      type: 'bar',
+      data: {
+        labels: nurseryEntries.map(function (e) { return e[0]; }),
+        datasets: [{ label: 'Spent (AED)', data: nurseryEntries.map(function (e) { return e[1]; }), backgroundColor: '#8B5CF6', borderRadius: 4 }],
+      },
+      options: noGridOpts(),
+    });
+
     bindCapexCategoryControls(function () {
       CAPEX_CATEGORY_STATE.sites = readMultiSelect('capex-cat-sites');
       CAPEX_CATEGORY_STATE.cats = readMultiSelect('capex-cat-cats');
@@ -1257,35 +1288,32 @@
     const D = DATA;
     const pr = (D && D.procurement) ? D.procurement : DEMO.procurement;
 
-    // KPIs
+    // KPIs — only Spend YTD
     const kpiEl = document.getElementById('k-proc');
     if (kpiEl) {
-      kpiEl.innerHTML = [
-        kpiCard('Active POs', pr.kpis.activePOs, '', '#2563EB'),
-        kpiCard('Pending Approval', pr.kpis.pending, '', '#F59E0B'),
-        kpiCard('Overdue', pr.kpis.overdue, '', '#EF4444'),
-        kpiCard('Spend YTD', faed(pr.kpis.spendYTD), '', '#10B981'),
-      ].join('');
+      kpiEl.innerHTML = kpiCard('Spend YTD', faed(pr.kpis.spendYTD), '', '#10B981');
     }
 
-    // PO status doughnut
-    const stCfg = getCfg('c-proc-status');
-    mkChart('c-proc-status', {
-      type: 'doughnut',
-      data: {
-        labels: Object.keys(pr.bySt),
-        datasets: [{ data: Object.values(pr.bySt), backgroundColor: stCfg ? stCfg.colors : ['#10B981', '#2563EB', '#F59E0B', '#3B82F6'] }],
-      },
-      options: Object.assign(doughnutOpts(stCfg ? stCfg.legendPosition : 'right'), { cutout: stCfg ? stCfg.cutout : '60%' }),
-    });
-
-    // Spend by department bar
+    // Spend by department bar — sorted highest to lowest, full width
     const spCfg = getCfg('c-proc-spend');
+    const deptEntries = Object.entries(pr.byDept || {}).sort(function (a, b) { return b[1] - a[1]; });
     mkChart('c-proc-spend', {
       type: 'bar',
       data: {
-        labels: Object.keys(pr.byDept),
-        datasets: [{ label: 'Spend (AED)', data: Object.values(pr.byDept), backgroundColor: spCfg ? spCfg.colors[0] : '#2563EB', borderRadius: 4 }],
+        labels: deptEntries.map(function (e) { return e[0]; }),
+        datasets: [{ label: 'Spend (AED)', data: deptEntries.map(function (e) { return e[1]; }), backgroundColor: spCfg ? spCfg.colors[0] : '#2563EB', borderRadius: 4 }],
+      },
+      options: noGridOpts(),
+    });
+
+    // Spend by Nursery bar — sorted highest to lowest
+    const nurCfg = getCfg('c-proc-nursery');
+    const nurseryEntries = Object.entries(pr.byNursery || {}).sort(function (a, b) { return b[1] - a[1]; });
+    mkChart('c-proc-nursery', {
+      type: 'bar',
+      data: {
+        labels: nurseryEntries.map(function (e) { return e[0]; }),
+        datasets: [{ label: 'Spend (AED)', data: nurseryEntries.map(function (e) { return e[1]; }), backgroundColor: nurCfg ? nurCfg.colors[0] : '#8B5CF6', borderRadius: 4 }],
       },
       options: noGridOpts(),
     });
@@ -1360,6 +1388,19 @@
         html += '<tr><td>' + r.id + '</td><td>' + r.site + '</td><td>' + r.cat + '</td><td>' + r.desc + '</td><td>' + pill(r.priority) + '</td><td>' + pill(r.status) + '</td><td>' + r.raised + '</td></tr>';
       });
       tbl.innerHTML = html;
+    }
+
+    // Asset Register table — generic rendering based on available columns
+    const assetTbl = document.getElementById('t-it-assets');
+    const assetHead = document.getElementById('t-it-assets-head');
+    if (assetTbl && it.assetRegister && it.assetRegister.length) {
+      const cols = Object.keys(it.assetRegister[0]);
+      if (assetHead) {
+        assetHead.innerHTML = '<tr>' + cols.map(function (c) { return '<th scope="col">' + c + '</th>'; }).join('') + '</tr>';
+      }
+      assetTbl.innerHTML = it.assetRegister.map(function (r) {
+        return '<tr>' + cols.map(function (c) { return '<td>' + (r[c] !== null && r[c] !== undefined ? r[c] : '') + '</td>'; }).join('') + '</tr>';
+      }).join('');
     }
   }
 
@@ -1487,6 +1528,20 @@
       },
       options: noGridOpts(),
     });
+
+    // Pipeline Overview raw table
+    const pipeTbl  = document.getElementById('t-gf-pipeline');
+    const pipeHead = document.getElementById('t-gf-pipeline-head');
+    const pipeRows = g.rawPipeline || [];
+    if (pipeTbl && pipeRows.length) {
+      const cols = Object.keys(pipeRows[0]);
+      if (pipeHead) {
+        pipeHead.innerHTML = '<tr>' + cols.map(function (c) { return '<th scope="col">' + c + '</th>'; }).join('') + '</tr>';
+      }
+      pipeTbl.innerHTML = pipeRows.map(function (r) {
+        return '<tr>' + cols.map(function (c) { return '<td>' + (r[c] !== null && r[c] !== undefined ? r[c] : '') + '</td>'; }).join('') + '</tr>';
+      }).join('');
+    }
   }
 
   // --------------------------------------------------------------------------

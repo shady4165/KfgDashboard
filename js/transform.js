@@ -343,7 +343,7 @@
         priority: col(r, 'Priority') || 'Medium',
         rag:      rag,
       };
-    }).filter(function (p) { return p.name; });
+    }).filter(function (p) { return p.name || p.id || p.owner; });
 
     var active  = list.length;
     var onTrack = list.filter(function (p) {
@@ -424,42 +424,33 @@
       };
     }).filter(function (s) { return s.supplier || s.category; });
 
-    var activePOs = pos.filter(function (p) {
-      var s = (p.status || '').toLowerCase();
-      return s !== 'delivered' && s !== 'cancelled' && s !== 'closed' && s !== 'rejected';
-    }).length;
-    var pending   = pos.filter(function (p) { return (p.status || '').toLowerCase().includes('pending'); }).length;
-    var overdue   = pos.filter(function (p) { return (p.status || '').toLowerCase() === 'overdue'; }).length;
-    var spendYTD  = pos.filter(function (p) { return (p.status || '').toLowerCase() === 'delivered'; })
-                       .reduce(function (s, p) { return s + p.value; }, 0);
+    // spendYTD = total value of all POs (not just delivered)
+    var spendYTD = pos.reduce(function (s, p) { return s + p.value; }, 0);
+    var overdue  = pos.filter(function (p) { return (p.status || '').toLowerCase() === 'overdue'; }).length;
 
     var ragKpi = kpiVal(kpiRows, 'rag') || kpiVal(kpiRows, 'overall');
     var rag    = ragKpi ? String(ragKpi) : (overdue > 2 ? 'Red' : overdue > 0 ? 'Amber' : 'Green');
 
-    var activePOsK = kpiVal(kpiRows, 'active');
-    var pendingK   = kpiVal(kpiRows, 'pending');
-    var overdueK   = kpiVal(kpiRows, 'overdue');
-    var spendK     = kpiVal(kpiRows, 'spend');
+    var spendK = kpiVal(kpiRows, 'spend');
 
-    var bySt = {}, byDept = {};
+    var bySt = {}, byDept = {}, byNursery = {};
     pos.forEach(function (p) {
-      if (p.status) bySt[p.status] = (bySt[p.status] || 0) + 1;
-      if (p.category) byDept[p.category] = (byDept[p.category] || 0) + p.value;
+      if (p.status)  bySt[p.status]       = (bySt[p.status] || 0) + 1;
+      if (p.category) byDept[p.category]  = (byDept[p.category] || 0) + p.value;
+      if (p.nursery)  byNursery[p.nursery] = (byNursery[p.nursery] || 0) + p.value;
     });
 
     return {
       kpis: {
-        activePOs: activePOsK !== null ? num(activePOsK) : activePOs,
-        pending:   pendingK   !== null ? num(pendingK)   : pending,
-        overdue:   overdueK   !== null ? num(overdueK)   : overdue,
-        spendYTD:  spendK     !== null ? num(spendK)     : spendYTD,
-        rag:       rag,
+        spendYTD: spendK !== null ? num(spendK) : spendYTD,
+        rag:      rag,
       },
       refLabel: refLabel,
       pos: pos,
       suppliers: suppliers,
-      bySt:   Object.keys(bySt).length   ? bySt   : { 'N/A': 1 },
-      byDept: Object.keys(byDept).length ? byDept : { 'General': spendYTD },
+      bySt:      Object.keys(bySt).length      ? bySt      : { 'N/A': 1 },
+      byDept:    Object.keys(byDept).length    ? byDept    : { 'General': spendYTD },
+      byNursery: Object.keys(byNursery).length ? byNursery : {},
     };
   }
 
@@ -469,8 +460,9 @@
 
   function transformIT(raw) {
     if (!raw) return null;
-    var kpiRows  = raw.kpi  || [];
-    var dataRows = raw.data || [];
+    var kpiRows       = raw.kpi           || [];
+    var dataRows      = raw.data          || [];
+    var assetRows     = raw.assetRegister || [];
 
     var tickets = dataRows.map(function (r, idx) {
       return {
@@ -530,6 +522,14 @@
       trend = { labels: ['Current'], open: [openTickets], resolved: [resolved] };
     }
 
+    var assets = assetRows.map(function (r) {
+      var keys = Object.keys(r);
+      // Return all columns as-is for generic table rendering
+      var obj = {};
+      keys.forEach(function (k) { obj[k] = r[k]; });
+      return obj;
+    }).filter(function (r) { return Object.values(r).some(function (v) { return v !== null && v !== undefined && v !== ''; }); });
+
     return {
       kpis: {
         openTickets: openTickets,
@@ -538,9 +538,10 @@
         slaPct:      slaPct,
         rag:         rag,
       },
-      tickets: tickets,
-      byCat:   Object.keys(byCat).length ? byCat : { 'General': tickets.length },
-      trend:   trend,
+      tickets:       tickets,
+      assetRegister: assets,
+      byCat:         Object.keys(byCat).length ? byCat : { 'General': tickets.length },
+      trend:         trend,
     };
   }
 
@@ -686,7 +687,8 @@
         totalEBITDA:       totalEBITDA,
         rag:               rag,
       },
-      sites: sites,
+      sites:       sites,
+      rawPipeline: dataRows,
     };
   }
 

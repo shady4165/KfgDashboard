@@ -334,6 +334,18 @@
               </div>
             </div>
             <div class="analytics-summary" id="capex-cat-summary"></div>
+            <div class="grid-2" style="margin-bottom:16px">
+              <div class="card" data-chart-id="c-capex-cat-spent">
+                <h3 class="card-title">Spent per Category</h3>
+                <div class="card-sub">AED — total spend by category</div>
+                <div class="chart-wrap" style="height:260px"><canvas id="c-capex-cat-spent" aria-label="Capex spent per category chart"></canvas></div>
+              </div>
+              <div class="card" data-chart-id="c-capex-cat-nursery">
+                <h3 class="card-title">Spent per Nursery</h3>
+                <div class="card-sub">AED — total spend by nursery</div>
+                <div class="chart-wrap" style="height:260px"><canvas id="c-capex-cat-nursery" aria-label="Capex spent per nursery chart"></canvas></div>
+              </div>
+            </div>
             <div class="tbl-wrap">
               <table role="table" aria-label="Capex category budget">
                 <thead><tr><th scope="col">Category</th><th scope="col">Budget (AED)</th><th scope="col">Spent YTD (AED)</th><th scope="col">Committed (AED)</th><th scope="col">Remaining (AED)</th><th scope="col">% Utilised</th><th scope="col">RAG</th></tr></thead>
@@ -398,20 +410,18 @@
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-procurement','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','orders')" type="button">PO Register</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','analytics')" type="button">PO Analytics</button>
-          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','suppliers')" type="button">Supplier Register</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-procurement','suppliers')" type="button">Active Contracts</button>
         </div>
         <div class="tab-pane active" id="pg-procurement-overview">
-          <div class="grid-2">
-            <div class="card" data-chart-id="c-proc-status">
-              <h3 class="card-title">PO Status Breakdown</h3>
-              <div class="card-sub">Current status of all purchase orders</div>
-              <div class="chart-wrap" style="height:240px"><canvas id="c-proc-status" aria-label="PO status breakdown chart"></canvas></div>
-            </div>
-            <div class="card" data-chart-id="c-proc-spend">
-              <h3 class="card-title">Spend by Department</h3>
-              <div class="card-sub">AED — YTD spend distribution</div>
-              <div class="chart-wrap" style="height:240px"><canvas id="c-proc-spend" aria-label="Spend by department chart"></canvas></div>
-            </div>
+          <div class="card" data-chart-id="c-proc-spend">
+            <h3 class="card-title">YTD Spend by Department</h3>
+            <div class="card-sub">AED — YTD spend distribution (highest to lowest)</div>
+            <div class="chart-wrap" style="height:300px"><canvas id="c-proc-spend" aria-label="Spend by department chart"></canvas></div>
+          </div>
+          <div class="card" style="margin-top:16px" data-chart-id="c-proc-nursery">
+            <h3 class="card-title">Spend by Nursery</h3>
+            <div class="card-sub">AED — YTD spend per nursery (highest to lowest)</div>
+            <div class="chart-wrap" style="height:300px"><canvas id="c-proc-nursery" aria-label="Spend by nursery chart"></canvas></div>
           </div>
         </div>
         <div class="tab-pane" id="pg-procurement-orders">
@@ -457,7 +467,7 @@
         </div>
         <div class="tab-pane" id="pg-procurement-suppliers">
           <div class="card">
-            <h3 class="card-title">Supplier Register</h3>
+            <h3 class="card-title">Active Contracts</h3>
             <div class="card-sub">Filter supplier records by supplier, category and contract expiry date.</div>
             <div class="analytics-filters">
               <div class="analytics-field">
@@ -503,6 +513,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-it','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-it','tickets')" type="button">Tickets</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-it','assets')" type="button">Asset Register</button>
         </div>
         <div class="tab-pane active" id="pg-it-overview">
           <div class="grid-2">
@@ -525,6 +536,17 @@
               <table role="table" aria-label="IT open tickets">
                 <thead><tr><th scope="col">Ticket ID</th><th scope="col">Site</th><th scope="col">Category</th><th scope="col">Description</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Raised</th></tr></thead>
                 <tbody id="t-it"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-it-assets">
+          <div class="card">
+            <h3 class="card-title">Asset Register</h3>
+            <div class="tbl-wrap">
+              <table role="table" aria-label="IT asset register">
+                <thead id="t-it-assets-head"></thead>
+                <tbody id="t-it-assets"></tbody>
               </table>
             </div>
           </div>
@@ -615,6 +637,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-greenfield','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-greenfield','sites')" type="button">Site Cards</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-greenfield','pipeline')" type="button">Pipeline Overview</button>
         </div>
         <div class="tab-pane active" id="pg-greenfield-overview">
           <div class="grid-2">
@@ -632,6 +655,17 @@
         </div>
         <div class="tab-pane" id="pg-greenfield-sites">
           <div class="gf-grid" id="gf-site-cards"></div>
+        </div>
+        <div class="tab-pane" id="pg-greenfield-pipeline">
+          <div class="card">
+            <h3 class="card-title">Pipeline Overview</h3>
+            <div class="tbl-wrap">
+              <table role="table" aria-label="Greenfield pipeline overview">
+                <thead id="t-gf-pipeline-head"></thead>
+                <tbody id="t-gf-pipeline"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -714,8 +748,8 @@
 <script src="js/config.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/graph.js?v=5"></script>
-<script src="js/transform.js?v=3"></script>
-<script src="js/dashboard.js?v=3"></script>
+<script src="js/transform.js?v=4"></script>
+<script src="js/dashboard.js?v=4"></script>
 <script src="js/admin.js?v=2"></script>
 <script src="js/app.js?v=2"></script>
 
