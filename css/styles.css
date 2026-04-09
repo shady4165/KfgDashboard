@@ -1858,7 +1858,8 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   display: flex;
   flex-direction: column;
   z-index: 820;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   transition: width 0.3s ease, min-width 0.3s ease;
 }
 
@@ -1986,13 +1987,13 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
 .sidebar.collapsed .sidebar-nav .nav-item {
   justify-content: center;
   gap: 0;
-  padding: 9px 8px;
+  padding: 9px 0;
   font-size: 20px;
-  min-width: 0;
-  width: 44px;
-  overflow: hidden;
-  letter-spacing: -0.05em;
+  width: 100%;
   position: relative;
+}
+.sidebar.collapsed .sidebar-nav .nav-item .nav-label {
+  display: none;
 }
 .sidebar.collapsed .sidebar-nav .nav-item:hover::after,
 .sidebar.collapsed .sidebar-nav .nav-item.active::after {
@@ -2154,18 +2155,17 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
 }
 .search-results {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  max-width: 400px;
-  max-height: 400px;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  width: 420px;
+  max-height: 420px;
   overflow-y: auto;
-  box-shadow: var(--shadow);
-  z-index: 1000;
-  margin-top: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  z-index: 9999;
 }
 .search-result-group {
   padding: 8px 12px;
