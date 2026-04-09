@@ -102,11 +102,22 @@
       const creds = raw ? JSON.parse(raw) : null;
       if (!creds) return null;
 
-      // Detect and fix malformed siteUrl (e.g. URL duplicated or concatenated)
+      // Detect and fix malformed siteUrl (URL duplication, partial repeats, or unusual concatenation)
       if (creds.siteUrl) {
         const url = String(creds.siteUrl).trim();
-        // If URL contains itself twice or has spaces in unusual places, it's corrupted
-        if ((url.match(/sharepoint\.com.*sharepoint\.com/i) || url.includes(' ExecutiveDashboard ExecutiveDashboard'))) {
+        // Check for common corruption patterns:
+        // 1. URL appears twice or partially duplicated
+        // 2. Multiple consecutive slashes or unescaped content in path
+        // 3. Suspicious patterns like 'https:' appearing mid-URL
+        const isMalformed =
+          url.match(/https:.*https:/i) ||                    // https appears twice
+          url.length > 150 ||                                 // Abnormally long
+          url.includes(' ') && !url.startsWith('https') ||   // Spaces but not a proper URL
+          url.match(/[A-Z][a-z]+https:/) ||                  // Partial word + https (e.g. Exehttps)
+          url.includes('ExecutiveDashboard ExecutiveDashboard') ||  // Obvious duplication
+          !url.startsWith('https://') || !url.includes('sharepoint.com/sites/');
+
+        if (isMalformed) {
           console.warn('[App] Detected malformed siteUrl in localStorage, clearing credentials');
           localStorage.removeItem(CREDS_KEY);
           return null;
