@@ -1832,122 +1832,124 @@
 
   window.performSearch = function(query) {
     const resultsDiv = document.getElementById('search-results');
+    if (!resultsDiv) return;
+
     if (!query || query.trim().length < 2) {
       resultsDiv.style.display = 'none';
+      resultsDiv.innerHTML = '';
       return;
     }
 
-    const q = query.toLowerCase();
-    const data = DATA || DEMO;
+    const q = query.toLowerCase().trim();
+    const data = DATA || DEMO || {};
     const groups = [];
 
     function hl(text) {
-      if (!text) return '';
-      const idx = text.toLowerCase().indexOf(q);
-      if (idx < 0) return text;
-      return text.slice(0, idx) + '<mark style="background:var(--gold);color:#000;border-radius:2px;">' + text.slice(idx, idx + q.length) + '</mark>' + text.slice(idx + q.length);
+      const raw = String(text || '');
+      if (!raw) return '';
+      const idx = raw.toLowerCase().indexOf(q);
+      if (idx < 0) return raw;
+      return raw.slice(0, idx) + '<mark style="background:var(--gold);color:#000;border-radius:2px;">' + raw.slice(idx, idx + q.length) + '</mark>' + raw.slice(idx + q.length);
     }
 
-    // Maintenance jobs
-    if (data.maintenance && data.maintenance.jobs) {
-      const hits = data.maintenance.jobs.filter(j =>
-        (j.id || '').toLowerCase().includes(q) ||
-        (j.desc || '').toLowerCase().includes(q) ||
-        (j.site || '').toLowerCase().includes(q) ||
-        (j.cat || '').toLowerCase().includes(q)
-      ).slice(0, 8);
-      if (hits.length) groups.push({ label: '🔧 Maintenance Jobs', items: hits.map(j => ({ text: hl(j.id) + ' — ' + hl(j.desc) + ' <span style="opacity:.6;font-size:11px;">(' + hl(j.site) + ')</span>', page: 'maintenance' })) });
+    function hasMatch() {
+      for (var i = 0; i < arguments.length; i++) {
+        var v = arguments[i];
+        if (v !== null && v !== undefined && String(v).toLowerCase().includes(q)) return true;
+      }
+      return false;
     }
 
-    // Projects
-    if (data.projects && data.projects.list) {
-      const hits = data.projects.list.filter(p =>
-        (p.name || '').toLowerCase().includes(q) ||
-        (p.status || '').toLowerCase().includes(q) ||
-        (p.pm || '').toLowerCase().includes(q) ||
-        (p.site || '').toLowerCase().includes(q)
-      ).slice(0, 8);
-      if (hits.length) groups.push({ label: '🏗️ Projects', items: hits.map(p => ({ text: hl(p.name) + ' <span style="opacity:.6;font-size:11px;">(' + (p.status || '') + ')</span>', page: 'projects' })) });
+    function pushGroup(label, list, predicate, mapper, page, limit) {
+      if (!Array.isArray(list) || !list.length) return;
+      const hits = list.filter(predicate).slice(0, limit || 8);
+      if (!hits.length) return;
+      groups.push({ label: label, items: hits.map(function(item) { return { text: mapper(item), page: page }; }) });
     }
 
-    // Greenfield sites
-    if (data.greenfield && data.greenfield.sites) {
-      const hits = data.greenfield.sites.filter(s =>
-        (s.name || '').toLowerCase().includes(q) ||
-        (s.city || '').toLowerCase().includes(q) ||
-        (s.brand || '').toLowerCase().includes(q) ||
-        (s.status || '').toLowerCase().includes(q)
-      ).slice(0, 6);
-      if (hits.length) groups.push({ label: '🌱 Greenfield Sites', items: hits.map(s => ({ text: hl(s.name) + ' <span style="opacity:.6;font-size:11px;">(' + hl(s.city) + ' · ' + (s.status || '') + ')</span>', page: 'greenfield' })) });
-    }
+    pushGroup('🔧 Maintenance Jobs', data.maintenance && data.maintenance.jobs, function(j) {
+      return hasMatch(j.id, j.desc, j.site, j.cat, j.priority, j.status, j.assignedTo, j.notes);
+    }, function(j) {
+      return hl(j.id) + ' — ' + hl(j.desc) + ' <span style="opacity:.6;font-size:11px;">(' + hl(j.site) + ' · ' + hl(j.cat) + ')</span>';
+    }, 'maintenance', 8);
 
-    // Procurement POs
-    if (data.procurement && data.procurement.pos) {
-      const hits = data.procurement.pos.filter(p =>
-        (p.po || '').toLowerCase().includes(q) ||
-        (p.supplier || '').toLowerCase().includes(q) ||
-        (p.desc || '').toLowerCase().includes(q) ||
-        (p.dept || '').toLowerCase().includes(q)
-      ).slice(0, 6);
-      if (hits.length) groups.push({ label: '🛒 Procurement POs', items: hits.map(p => ({ text: hl(p.po) + ' — ' + hl(p.supplier) + ' <span style="opacity:.6;font-size:11px;">(' + hl(p.desc) + ')</span>', page: 'procurement' })) });
-    }
+    pushGroup('🏗️ Projects', data.projects && data.projects.list, function(p) {
+      return hasMatch(p.id, p.name, p.owner, p.priority, p.rag, p.end);
+    }, function(p) {
+      return hl(p.name || p.id) + ' <span style="opacity:.6;font-size:11px;">(' + hl(p.owner) + ' · ' + hl(p.rag) + ')</span>';
+    }, 'projects', 8);
 
-    // Suppliers
-    if (data.procurement && data.procurement.suppliers) {
-      const hits = data.procurement.suppliers.filter(s =>
-        (s.supplier || '').toLowerCase().includes(q) ||
-        (s.category || '').toLowerCase().includes(q)
-      ).slice(0, 6);
-      if (hits.length) groups.push({ label: '🤝 Suppliers', items: hits.map(s => ({ text: hl(s.supplier) + ' <span style="opacity:.6;font-size:11px;">(' + hl(s.category) + ')</span>', page: 'procurement' })) });
-    }
+    pushGroup('🏁 Project Milestones', data.projects && data.projects.milestones, function(m) {
+      return hasMatch(m.projectId, m.project, m.milestone, m.owner, m.status, m.priority, m.notes);
+    }, function(m) {
+      return hl(m.project || m.projectId) + ' — ' + hl(m.milestone) + ' <span style="opacity:.6;font-size:11px;">(' + hl(m.status) + ')</span>';
+    }, 'projects', 6);
 
-    // IT Tickets
-    if (data.it && data.it.tickets) {
-      const hits = data.it.tickets.filter(t =>
-        (t.id || '').toLowerCase().includes(q) ||
-        (t.desc || '').toLowerCase().includes(q) ||
-        (t.site || '').toLowerCase().includes(q) ||
-        (t.cat || '').toLowerCase().includes(q)
-      ).slice(0, 6);
-      if (hits.length) groups.push({ label: '💻 IT Tickets', items: hits.map(t => ({ text: hl(t.id) + ' — ' + hl(t.desc) + ' <span style="opacity:.6;font-size:11px;">(' + hl(t.site) + ')</span>', page: 'it' })) });
-    }
+    pushGroup('🌱 Greenfield Sites', data.greenfield && data.greenfield.sites, function(s) {
+      return hasMatch(s.id, s.name, s.city, s.brand, s.status, s.rag, s.opening);
+    }, function(s) {
+      return hl(s.name || s.id) + ' <span style="opacity:.6;font-size:11px;">(' + hl(s.city) + ' · ' + hl(s.status) + ')</span>';
+    }, 'greenfield', 6);
 
-    // M&A Deals
-    if (data.ma && data.ma.deals) {
-      const hits = data.ma.deals.filter(d =>
-        (d.id || '').toLowerCase().includes(q) ||
-        (d.target || '').toLowerCase().includes(q) ||
-        (d.type || '').toLowerCase().includes(q) ||
-        (d.stage || '').toLowerCase().includes(q)
-      ).slice(0, 6);
-      if (hits.length) groups.push({ label: '🤝 M&A Deals', items: hits.map(d => ({ text: hl(d.id) + ' — ' + hl(d.target) + ' <span style="opacity:.6;font-size:11px;">(' + hl(d.stage) + ')</span>', page: 'ma' })) });
-    }
+    pushGroup('🛒 Procurement POs', data.procurement && data.procurement.pos, function(p) {
+      return hasMatch(p.ref, p.po, p.nursery, p.site, p.supplier, p.desc, p.category, p.dept, p.status);
+    }, function(p) {
+      return hl(p.ref || p.po || p.nursery) + ' — ' + hl(p.supplier) + ' <span style="opacity:.6;font-size:11px;">(' + hl(p.nursery || p.site) + ' · ' + hl(p.category || p.dept) + ')</span>';
+    }, 'procurement', 8);
 
-    // Other Projects
-    if (data.other && data.other.projects) {
-      const hits = data.other.projects.filter(p =>
-        (p.name || '').toLowerCase().includes(q) ||
-        (p.cat || '').toLowerCase().includes(q) ||
-        (p.owner || '').toLowerCase().includes(q)
-      ).slice(0, 6);
-      if (hits.length) groups.push({ label: '📋 Other Projects', items: hits.map(p => ({ text: hl(p.name) + ' <span style="opacity:.6;font-size:11px;">(' + hl(p.cat) + ')</span>', page: 'other' })) });
-    }
+    pushGroup('🤝 Suppliers', data.procurement && data.procurement.suppliers, function(s) {
+      return hasMatch(s.supplier, s.category, s.contact, s.status, s.notes);
+    }, function(s) {
+      return hl(s.supplier) + ' <span style="opacity:.6;font-size:11px;">(' + hl(s.category) + ')</span>';
+    }, 'procurement', 6);
 
-    // Capex nurseries
-    if (data.capex && data.capex.nurseries) {
-      const hits = data.capex.nurseries.filter(n =>
-        (n.name || '').toLowerCase().includes(q) ||
-        (n.city || '').toLowerCase().includes(q)
-      ).slice(0, 6);
-      if (hits.length) groups.push({ label: '💰 Capex Nurseries', items: hits.map(n => ({ text: hl(n.name) + ' <span style="opacity:.6;font-size:11px;">(' + (n.city || '') + ')</span>', page: 'capex' })) });
-    }
+    pushGroup('💻 IT Tickets', data.it && data.it.tickets, function(t) {
+      return hasMatch(t.id, t.desc, t.site, t.cat, t.priority, t.status);
+    }, function(t) {
+      return hl(t.id) + ' — ' + hl(t.desc) + ' <span style="opacity:.6;font-size:11px;">(' + hl(t.site) + ' · ' + hl(t.cat) + ')</span>';
+    }, 'it', 6);
 
-    // Build HTML
+    pushGroup('🤝 M&A Deals', data.ma && data.ma.deals, function(d) {
+      return hasMatch(d.id, d.target, d.type, d.stage, d.lead, d.close);
+    }, function(d) {
+      return hl(d.id) + ' — ' + hl(d.target) + ' <span style="opacity:.6;font-size:11px;">(' + hl(d.stage) + ')</span>';
+    }, 'ma', 6);
+
+    pushGroup('📌 M&A Milestones', data.ma && data.ma.milestones, function(m) {
+      return hasMatch(m.dealId, m.target, m.milestone, m.owner, m.status, m.notes);
+    }, function(m) {
+      return hl(m.target || m.dealId) + ' — ' + hl(m.milestone) + ' <span style="opacity:.6;font-size:11px;">(' + hl(m.status) + ')</span>';
+    }, 'ma', 6);
+
+    pushGroup('📋 Other Projects', data.other && data.other.projects, function(p) {
+      return hasMatch(p.id, p.name, p.cat, p.owner, p.priority, p.rag);
+    }, function(p) {
+      return hl(p.name || p.id) + ' <span style="opacity:.6;font-size:11px;">(' + hl(p.cat) + ' · ' + hl(p.owner) + ')</span>';
+    }, 'other', 6);
+
+    pushGroup('✅ Other Project Actions', data.other && data.other.actions, function(a) {
+      return hasMatch(a.projectId, a.project, a.action, a.owner, a.status, a.priority, a.notes);
+    }, function(a) {
+      return hl(a.project || a.projectId) + ' — ' + hl(a.action) + ' <span style="opacity:.6;font-size:11px;">(' + hl(a.status) + ')</span>';
+    }, 'other', 6);
+
+    pushGroup('💰 Capex Nurseries', data.capex && data.capex.nurseries, function(n) {
+      return hasMatch(n.name, n.city);
+    }, function(n) {
+      return hl(n.name) + ' <span style="opacity:.6;font-size:11px;">(' + hl(n.city) + ')</span>';
+    }, 'capex', 6);
+
+    pushGroup('💰 Capex Projects', data.capex && data.capex.projects, function(p) {
+      return hasMatch(p.id, p.name, p.nursery, p.category, p.status);
+    }, function(p) {
+      return hl(p.name || p.id) + ' <span style="opacity:.6;font-size:11px;">(' + hl(p.nursery) + ' · ' + hl(p.category) + ')</span>';
+    }, 'capex', 6);
+
     let html = '';
     let totalResults = 0;
-    groups.forEach(g => {
+    groups.forEach(function(g) {
       html += '<div class="search-result-group">' + g.label + '</div>';
-      g.items.forEach(item => {
+      g.items.forEach(function(item) {
         totalResults++;
         html += '<div class="search-result-item" onclick="window.goToResult(\'' + item.page + '\')">' + item.text + '</div>';
       });
@@ -1961,15 +1963,14 @@
 
     resultsDiv.innerHTML = html;
 
-    // Position the dropdown below the search input using fixed positioning
+    // Position dropdown below search input using fixed positioning (avoids z-index/stacking context issues)
     var inputEl = document.getElementById('search-input');
     if (inputEl) {
       var rect = inputEl.getBoundingClientRect();
       resultsDiv.style.top = (rect.bottom + 6) + 'px';
-      resultsDiv.style.left = (rect.left + rect.width / 2 - 220) + 'px';
+      resultsDiv.style.left = Math.max(16, rect.left + rect.width / 2 - 220) + 'px';
+      resultsDiv.style.display = 'block';
     }
-
-    resultsDiv.style.display = 'block';
   };
 
   window.goToResult = function(page) {
