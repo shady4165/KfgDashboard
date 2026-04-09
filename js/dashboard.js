@@ -470,30 +470,6 @@
       tbl.innerHTML = html;
     }
 
-    // Comparison chart - open items by department
-    const compData = window.getComparisonData();
-    if (compData && compData.byDept) {
-      const compCfg = getCfg('c-comp-items');
-      mkChart('c-comp-items', {
-        type: 'bar',
-        data: {
-          labels: compData.byDept.labels,
-          datasets: [{
-            label: 'Open Items',
-            data: compData.byDept.openItems,
-            backgroundColor: compCfg ? compCfg.colors || ['#2563EB'] : '#2563EB',
-            borderRadius: 4,
-          }],
-        },
-        options: noGridOpts(),
-      });
-    }
-
-    // Comparison metrics display
-    document.getElementById('comp-maint').textContent = (D.maintenance && D.maintenance.kpis.openJobs) || '—';
-    document.getElementById('comp-capex').textContent = (D.capex && D.capex.kpis.utilisedPct) ? fpct(D.capex.kpis.utilisedPct) : '—';
-    document.getElementById('comp-proj').textContent = (D.projects && D.projects.kpis.active) || '—';
-    document.getElementById('comp-proc').textContent = (D.procurement && D.procurement.kpis.openTickets) || '—';
   }
 
 
