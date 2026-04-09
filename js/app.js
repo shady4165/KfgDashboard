@@ -99,7 +99,20 @@
   function loadCredentials() {
     try {
       const raw = localStorage.getItem(CREDS_KEY);
-      return raw ? JSON.parse(raw) : null;
+      const creds = raw ? JSON.parse(raw) : null;
+      if (!creds) return null;
+
+      // Detect and fix malformed siteUrl (e.g. URL duplicated or concatenated)
+      if (creds.siteUrl) {
+        const url = String(creds.siteUrl).trim();
+        // If URL contains itself twice or has spaces in unusual places, it's corrupted
+        if ((url.match(/sharepoint\.com.*sharepoint\.com/i) || url.includes(' ExecutiveDashboard ExecutiveDashboard'))) {
+          console.warn('[App] Detected malformed siteUrl in localStorage, clearing credentials');
+          localStorage.removeItem(CREDS_KEY);
+          return null;
+        }
+      }
+      return creds;
     } catch (e) { return null; }
   }
 
