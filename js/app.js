@@ -385,6 +385,17 @@
      INITIALIZATION
   ══════════════════════════════════════════════ */
   async function initApp() {
+    // Restore dark mode preference
+    const darkModePreference = localStorage.getItem('kfg-dark-mode');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const shouldBeDark = darkModePreference === 'true' || (darkModePreference === null && prefersDark);
+
+    if (shouldBeDark) {
+      document.body.classList.add('dark-mode');
+      const toggle = $('dark-mode-toggle');
+      if (toggle) toggle.textContent = '🌙';
+    }
+
     // Restore sidebar collapsed state
     const sidebarCollapsed = localStorage.getItem('kfg-sidebar-collapsed');
     if (sidebarCollapsed === 'true') {
@@ -459,6 +470,25 @@
   }
 
   /* ══════════════════════════════════════════════
+     DARK MODE TOGGLE
+  ══════════════════════════════════════════════ */
+  function toggleDarkMode() {
+    const body = document.body;
+    const toggle = $('dark-mode-toggle');
+    const isDarkMode = body.classList.contains('dark-mode');
+
+    if (isDarkMode) {
+      body.classList.remove('dark-mode');
+      if (toggle) toggle.textContent = '☀️';
+      localStorage.setItem('kfg-dark-mode', 'false');
+    } else {
+      body.classList.add('dark-mode');
+      if (toggle) toggle.textContent = '🌙';
+      localStorage.setItem('kfg-dark-mode', 'true');
+    }
+  }
+
+  /* ══════════════════════════════════════════════
      EXPOSE GLOBAL FUNCTIONS
   ══════════════════════════════════════════════ */
   // These are called from onclick handlers in HTML
@@ -471,6 +501,7 @@
   window.logout = logout;
   window.switchPageTab = switchPageTab;
   window.toggleSidebar = toggleSidebar;
+  window.toggleDarkMode = toggleDarkMode;
 
   /* ══════════════════════════════════════════════
      BOOT

@@ -37,6 +37,40 @@
   --speed: 0.25s;
 }
 
+/* ----- 0b. Dark Mode Theme ----- */
+body.dark-mode {
+  --navy:    #E8F0F9;
+  --navy2:   #C5D9F1;
+  --navy3:   #A2C2E8;
+  --blue:    #60A5FA;
+  --blue2:   #3B82F6;
+  --teal:    #22D3EE;
+  --gold:    #FBBF24;
+  --green:   #34D399;
+  --amber:   #FBBF24;
+  --red:     #F87171;
+  --purple:  #A78BFA;
+  --bg:      #0F172A;
+  --bg2:     #1E293B;
+  --card:    #1E293B;
+  --border:  rgba(226,232,240,0.15);
+  --border2: rgba(226,232,240,0.25);
+  --text:    #F1F5FE;
+  --muted:   #94A3B8;
+  --light:   #64748B;
+  /* Fonts and design tokens stay the same */
+  --focus-ring: 3px solid var(--blue);
+  --shadow:  0 2px 16px rgba(0,0,0,0.3);
+}
+
+/* Smooth transition for theme switching */
+body {
+  transition: background-color var(--speed), color var(--speed);
+}
+body.dark-mode * {
+  transition: background-color var(--speed), color var(--speed), border-color var(--speed);
+}
+
 /* ----- 1. Reset & Base ----- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -1825,6 +1859,7 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
   flex-direction: column;
   z-index: 820;
   overflow-y: auto;
+  transition: width 0.3s ease, min-width 0.3s ease;
 }
 
 .sidebar-brand {
@@ -1990,13 +2025,14 @@ tr.grand-row td   { font-weight: 800; background: rgba(37,99,235,0.10); color: v
 }
 
 /* Adjust main-area when sidebar is collapsed */
+.main-area {
+  transition: margin-left 0.3s ease;
+}
 #app.sidebar-collapsed .main-area {
   margin-left: 64px;
-  width: calc(100% - 64px);
 }
 #app:not(.sidebar-collapsed) .main-area {
   margin-left: 240px;
-  width: calc(100% - 240px);
 }
 
 .sidebar-footer {
