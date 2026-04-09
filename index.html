@@ -288,7 +288,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-capex','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-capex','detail')" type="button">Budget Detail</button>
-          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-capex','categories')" type="button">Category Budget</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-capex','categories')" type="button">Capex Register</button>
         </div>
         <div class="tab-pane active" id="pg-capex-overview">
           <div class="grid-2">
@@ -318,8 +318,8 @@
         </div>
         <div class="tab-pane" id="pg-capex-categories">
           <div class="card">
-            <h3 class="card-title">Category Budget</h3>
-            <div class="card-sub">Filter by nursery or category. Nursery filtering uses the capex projects register to derive category totals per selected site.</div>
+            <h3 class="card-title">Capex Register</h3>
+            <div class="card-sub">Filter by nursery or category. Nursery filtering derives category totals from the Capex Register.</div>
             <div class="analytics-filters">
               <div class="analytics-field">
                 <label for="capex-cat-sites">Nursery</label>
@@ -368,6 +368,7 @@
         <div class="page-tabs">
           <button class="page-tab-btn active" onclick="switchPageTab(this,'pg-projects','overview')" type="button">Overview</button>
           <button class="page-tab-btn" onclick="switchPageTab(this,'pg-projects','register')" type="button">Projects Register</button>
+          <button class="page-tab-btn" onclick="switchPageTab(this,'pg-projects','milestones')" type="button">Milestones</button>
         </div>
         <div class="tab-pane active" id="pg-projects-overview">
           <div class="grid-2">
@@ -390,6 +391,36 @@
               <table role="table" aria-label="Active projects register">
                 <thead><tr><th scope="col">ID</th><th scope="col">Project</th><th scope="col">Owner</th><th scope="col">Target End</th><th scope="col">% Done</th><th scope="col">Budget</th><th scope="col">Spent</th><th scope="col">Priority</th><th scope="col">RAG</th></tr></thead>
                 <tbody id="t-pm"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane" id="pg-projects-milestones">
+          <div class="card">
+            <h3 class="card-title">Milestones</h3>
+            <div class="card-sub">Filter milestones by project and due date.</div>
+            <div class="analytics-filters">
+              <div class="analytics-field">
+                <label for="pm-milestone-projects">Project</label>
+                <select id="pm-milestone-projects" multiple size="6"></select>
+              </div>
+              <div class="analytics-field">
+                <label for="pm-milestone-from">Due From</label>
+                <input id="pm-milestone-from" type="date" />
+              </div>
+              <div class="analytics-field">
+                <label for="pm-milestone-to">Due To</label>
+                <input id="pm-milestone-to" type="date" />
+              </div>
+              <div class="analytics-actions">
+                <button class="sidebar-btn" id="pm-milestone-reset" type="button">Reset Filters</button>
+              </div>
+            </div>
+            <div class="analytics-summary" id="pm-milestone-summary"></div>
+            <div class="tbl-wrap">
+              <table role="table" aria-label="Project milestones">
+                <thead><tr><th scope="col">Project ID</th><th scope="col">Project</th><th scope="col">Milestone</th><th scope="col">Due Date</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Notes</th></tr></thead>
+                <tbody id="t-pm-milestones"></tbody>
               </table>
             </div>
           </div>
@@ -747,9 +778,9 @@
 <!-- JavaScript Modules (load order matters) -->
 <script src="js/config.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/graph.js?v=5"></script>
-<script src="js/transform.js?v=4"></script>
-<script src="js/dashboard.js?v=4"></script>
+<script src="js/graph.js?v=6"></script>
+<script src="js/transform.js?v=5"></script>
+<script src="js/dashboard.js?v=5"></script>
 <script src="js/admin.js?v=2"></script>
 <script src="js/app.js?v=2"></script>
 

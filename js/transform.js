@@ -327,8 +327,9 @@
 
   function transformProjects(raw) {
     if (!raw) return null;
-    var kpiRows  = raw.kpi  || [];
-    var dataRows = raw.data || [];
+    var kpiRows       = raw.kpi        || [];
+    var dataRows      = raw.data       || [];
+    var milestoneRows = raw.milestones || [];
 
     var list = dataRows.map(function (r, idx) {
       var rag = col(r, 'RAG', 'RAG Status', 'Overall RAG', 'Status') || 'Amber';
@@ -362,9 +363,25 @@
     var ragKpi = kpiVal(kpiRows, 'rag') || kpiVal(kpiRows, 'overall');
     var rag    = ragKpi ? String(ragKpi) : (delayed > 0 ? 'Amber' : 'Green');
 
+    var milestones = milestoneRows.map(function (r) {
+      var dueRaw = col(r, 'Due Date', 'Target Date', 'Completion Date', 'Date');
+      return {
+        projectId: col(r, 'Project ID', 'Project Ref', 'ID', 'Ref') || '',
+        project:   col(r, 'Project Name', 'Project', 'Name', 'Title') || '',
+        milestone: col(r, 'Milestone', 'Task', 'Deliverable', 'Description', 'Activity') || '',
+        dueDate:   fmtDate(dueRaw),
+        dueDateObj: parseDateValue(dueRaw),
+        owner:     col(r, 'Owner', 'Responsible', 'Assigned To', 'Lead') || '',
+        status:    col(r, 'Status', 'Milestone Status') || '',
+        priority:  col(r, 'Priority') || '',
+        notes:     col(r, 'Notes', 'Remarks', 'Comments') || '',
+      };
+    }).filter(function (m) { return m.milestone || m.project || m.projectId; });
+
     return {
       kpis: { active: active, onTrack: onTrack, atRisk: atRisk, delayed: delayed, rag: rag },
       list: list,
+      milestones: milestones,
     };
   }
 

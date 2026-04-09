@@ -19,10 +19,10 @@
    */
   const SHEETS = {
     maintenance: { file: '02_Maintenance_Dashboard.xlsx', library: 'Maintenance', kpi: '📊 KPI Summary', data: '🔧 Jobs Register', sites: '🏢 Sites Summary', poCosts: 'MaintenancePOCost', poCostsFile: '02_Maintenance_Dashboard.xlsx', poCostsLibrary: 'Maintenance', dataHeaderRow: 1, sitesHeaderRow: 1, poCostsHeaderRow: 'auto', poCostsHeaderKeywords: ['site', 'nursery', 'category', 'amount', 'date', 'po', 'vendor'] },
-    capex:       { file: '03_Capex_Dashboard_CEO.xlsx', library: 'Capex', kpi: '📊 KPI Summary', data: '📊 Nursery Budget View', categories: '📁 Category Budget', projects: '📋 Projects Register', dataHeaderRow: 1, categoriesHeaderRow: 2, projectsHeaderRow: 1 },
-    projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: '📊 KPI Summary', data: '📁 Active Projects', dataHeaderRow: 1 },
+    capex:       { file: '03_Capex_Dashboard_CEO.xlsx', library: 'Capex', kpi: '📊 KPI Summary', data: '📊 Nursery Budget View', categories: '📋 Capex Register', projects: '📋 Projects Register', dataHeaderRow: 1, categoriesHeaderRow: 1, projectsHeaderRow: 1 },
+    projects:    { file: '01_Project_Management_Dashboard.xlsx', library: 'Project Management', kpi: '📊 KPI Summary', data: '📁 Active Projects', milestones: '🏁 Milestones', dataHeaderRow: 1, milestonesHeaderRow: 1 },
     procurement: { file: '04_Procurement_Dashboard.xlsx', library: 'Procurement', kpi: '📊 KPI Summary', data: '📋 PO Register', suppliers: '🏭 Supplier Register', dataHeaderRow: 2, suppliersHeaderRow: 1 },
-    it:          { file: '05_IT_Dashboard.xlsx', library: 'IT', kpi: '📊 KPI Summary', data: '🎫 Ticket Register', dataHeaderRow: 1 },
+    it:          { file: '05_IT_Dashboard.xlsx', library: 'IT', kpi: '📊 KPI Summary', data: '🎫 Ticket Register', assetRegister: 'Asset Register', dataHeaderRow: 1, assetRegisterHeaderRow: 1 },
     ma:          { file: '06_MA_Dashboard.xlsx', library: 'M&A', kpi: '📊 KPI Summary', data: '🤝 Deal Pipeline', milestones: '📅 Milestones', dataHeaderRow: 2, milestonesHeaderRow: 2 },
     greenfield:  { file: '07_Greenfield_Dashboard_CEO.xlsx', library: 'Greenfield', kpi: '📊 KPI Summary', data: '🏗 Pipeline Overview', dataHeaderRow: 2 },
     other:       { file: '08_Other_Projects_Dashboard.xlsx', library: 'Other Projects', kpi: '📊 KPI Summary', data: '📁 Projects Register', actions: '✅ Actions Log', dataHeaderRow: 1, actionsHeaderRow: 1 },
@@ -568,6 +568,7 @@
       if (dept.suppliers) tasks.push({ deptKey: dk, sheetKey: 'suppliers' });
       if (dept.milestones) tasks.push({ deptKey: dk, sheetKey: 'milestones' });
       if (dept.actions) tasks.push({ deptKey: dk, sheetKey: 'actions' });
+      if (dept.assetRegister) tasks.push({ deptKey: dk, sheetKey: 'assetRegister' });
     });
 
     // Execute all tasks in parallel

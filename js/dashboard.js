@@ -72,6 +72,15 @@
         { id: 'PM-004', name: 'New Nursery Fit-Out Site B', owner: 'S. Davis', end: '31/05/2026', pct: 10, budget: 120000, spent: 12000, priority: 'High', rag: 'Red' },
         { id: 'PM-005', name: 'Supplier Renegotiation', owner: 'L. Wilson', end: '31/03/2026', pct: 50, budget: 5000, spent: 2500, priority: 'Medium', rag: 'Green' },
       ],
+      milestones: [
+        { projectId: 'PM-001', project: 'Nursery Refurbishment Site A', milestone: 'Design Sign-off', dueDate: '15/01/2026', owner: 'J. Smith', status: 'Completed', priority: 'High', notes: '' },
+        { projectId: 'PM-001', project: 'Nursery Refurbishment Site A', milestone: 'Works Start', dueDate: '01/02/2026', owner: 'Contractor', status: 'Completed', priority: 'High', notes: '' },
+        { projectId: 'PM-001', project: 'Nursery Refurbishment Site A', milestone: 'Handover', dueDate: '31/03/2026', owner: 'J. Smith', status: 'In Progress', priority: 'Critical', notes: 'On track' },
+        { projectId: 'PM-002', project: 'IT Infrastructure Upgrade', milestone: 'Server Procurement', dueDate: '28/02/2026', owner: 'T. Brown', status: 'Completed', priority: 'High', notes: '' },
+        { projectId: 'PM-002', project: 'IT Infrastructure Upgrade', milestone: 'Installation', dueDate: '30/04/2026', owner: 'IT Team', status: 'In Progress', priority: 'High', notes: '' },
+        { projectId: 'PM-004', project: 'New Nursery Fit-Out Site B', milestone: 'Planning Permission', dueDate: '31/01/2026', owner: 'S. Davis', status: 'Completed', priority: 'Critical', notes: '' },
+        { projectId: 'PM-004', project: 'New Nursery Fit-Out Site B', milestone: 'Contractor Appointed', dueDate: '15/02/2026', owner: 'S. Davis', status: 'Open', priority: 'High', notes: 'Delayed — retendering' },
+      ],
     },
     procurement: {
       kpis: { activePOs: 5, pending: 1, overdue: 1, spendYTD: 30950, rag: 'Amber' },
@@ -84,6 +93,14 @@
       ],
       bySt: { Delivered: 2, Approved: 1, 'Pending Approval': 1, 'In Progress': 1 },
       byDept: { Maintenance: 18500, IT: 12000, Admin: 450 },
+      byNursery: { 'Nursery A': 12000, 'Nursery B': 9500, 'Nursery C': 7200, 'HQ': 2250 },
+      suppliers: [
+        { supplier: 'ABC Supplies', category: 'Cleaning', contractExp: '31/12/2026', contact: 'info@abc.com', annualSpend: 42000, status: 'Active', insuranceValid: 'Yes', notes: 'Annual contract' },
+        { supplier: 'XYZ Contractors', category: 'Maintenance', contractExp: '30/06/2026', contact: 'contracts@xyz.com', annualSpend: 98400, status: 'Active', insuranceValid: 'Yes', notes: 'Preferred vendor' },
+        { supplier: 'Tech Solutions', category: 'IT', contractExp: '28/02/2027', contact: 'sales@tech.com', annualSpend: 144000, status: 'Active', insuranceValid: 'Valid', notes: 'Hardware + support' },
+        { supplier: 'Office Depot', category: 'Stationery', contractExp: '31/03/2026', contact: 'corp@od.com', annualSpend: 5400, status: 'Active', insuranceValid: 'Yes', notes: '' },
+        { supplier: 'BuildRight Ltd', category: 'Carpentry', contractExp: '30/09/2026', contact: 'projects@brl.com', annualSpend: 81600, status: 'Active', insuranceValid: 'Yes', notes: 'Approved contractor' },
+      ],
     },
     it: {
       kpis: { openTickets: 3, resolved: 12, critical: 1, slaPct: 94, rag: 'Amber' },
@@ -106,6 +123,13 @@
       ],
       bySt: { 'Initial Review': 1, 'Heads of Terms': 1, 'Due Diligence': 1 },
       byVal: { 'Initial Review': 5000000, 'Heads of Terms': 850000, 'Due Diligence': 2500000 },
+      milestones: [
+        { dealId: 'MA-001', target: '[Confidential]', milestone: 'Financial Due Diligence', dueDate: '30/04/2026', owner: 'CFO', status: 'In Progress', priority: 'Critical', notes: 'Awaiting audited accounts' },
+        { dealId: 'MA-001', target: '[Confidential]', milestone: 'Legal Review', dueDate: '15/05/2026', owner: 'Legal Counsel', status: 'Open', priority: 'High', notes: '' },
+        { dealId: 'MA-002', target: '[Confidential]', milestone: 'Heads of Terms Signed', dueDate: '30/04/2026', owner: 'CEO', status: 'Completed', priority: 'High', notes: 'Signed 10 Apr 2026' },
+        { dealId: 'MA-002', target: '[Confidential]', milestone: 'Board Approval', dueDate: '15/05/2026', owner: 'Board', status: 'Open', priority: 'Critical', notes: 'Next board meeting May' },
+        { dealId: 'MA-003', target: '[Confidential]', milestone: 'Initial NDA', dueDate: '30/04/2026', owner: 'CEO', status: 'Completed', priority: 'Medium', notes: '' },
+      ],
     },
     greenfield: {
       kpis: { inPipeline: 4, underConstruction: 1, completed: 1, totalCapex: 11750000, totalEBITDA: 3653946, rag: 'Green' },
@@ -147,6 +171,7 @@
   const CAPEX_CATEGORY_STATE = { sites: [], cats: [] };
   const PROC_SUPPLIER_STATE = { suppliers: [], cats: [], from: '', to: '' };
   const MA_MILESTONE_STATE = { projects: [], from: '', to: '' };
+  const PM_MILESTONE_STATE = { projects: [], from: '', to: '' };
   const OTHER_ACTION_STATE = { projects: [], from: '', to: '' };
 
   // --------------------------------------------------------------------------
@@ -1131,6 +1156,49 @@
       });
       tbl.innerHTML = html;
     }
+
+    renderPMMilestones(p);
+  }
+
+  function renderPMMilestones(p) {
+    var rows = (p.milestones || []).map(function (r) {
+      return Object.assign({}, r, { _projectLabel: (r.projectId || '') + (r.project ? ' — ' + r.project : '') });
+    });
+    var allProjects = safeUnique(rows.map(function (r) { return r._projectLabel; }));
+    PM_MILESTONE_STATE.projects = ensureStateSelection(PM_MILESTONE_STATE.projects, allProjects);
+    populateMultiSelect('pm-milestone-projects', allProjects, PM_MILESTONE_STATE.projects);
+    var fromEl = document.getElementById('pm-milestone-from');
+    var toEl   = document.getElementById('pm-milestone-to');
+    if (fromEl) fromEl.value = PM_MILESTONE_STATE.from || '';
+    if (toEl)   toEl.value   = PM_MILESTONE_STATE.to   || '';
+    var selectedProjects = new Set(PM_MILESTONE_STATE.projects || []);
+    var filtered = rows.filter(function (r) {
+      return (!selectedProjects.size || selectedProjects.has(r._projectLabel)) &&
+             (!r.dueDateObj || inDateRange(r.dueDateObj, PM_MILESTONE_STATE.from, PM_MILESTONE_STATE.to));
+    });
+    renderAnalyticsSummary('pm-milestone-summary', [
+      { label: 'Milestones', value: filtered.length },
+      { label: 'Completed', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'completed'; }).length },
+      { label: 'In Progress', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'in progress'; }).length },
+      { label: 'Open', value: filtered.filter(function (r) { return String(r.status || '').toLowerCase() === 'open'; }).length },
+    ]);
+    var tbl = document.getElementById('t-pm-milestones');
+    if (tbl) {
+      tbl.innerHTML = filtered.map(function (r) {
+        return '<tr><td>' + (r.projectId||'') + '</td><td>' + (r.project||'') + '</td><td>' + (r.milestone||'') + '</td><td>' + (r.dueDate||'') + '</td><td>' + (r.owner||'') + '</td><td>' + pill(r.status) + '</td><td>' + pill(r.priority) + '</td><td>' + (r.notes||'') + '</td></tr>';
+      }).join('');
+    }
+    // bind controls
+    ['pm-milestone-projects','pm-milestone-from','pm-milestone-to'].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.onchange = function () {
+        PM_MILESTONE_STATE.projects = readMultiSelect('pm-milestone-projects');
+        PM_MILESTONE_STATE.from = (document.getElementById('pm-milestone-from') || {}).value || '';
+        PM_MILESTONE_STATE.to   = (document.getElementById('pm-milestone-to')   || {}).value || '';
+        renderPMMilestones(p);
+      };
+    });
+    var resetEl = document.getElementById('pm-milestone-reset');
+    if (resetEl) resetEl.onclick = function () { PM_MILESTONE_STATE.projects=[]; PM_MILESTONE_STATE.from=''; PM_MILESTONE_STATE.to=''; renderPMMilestones(p); };
   }
 
 
